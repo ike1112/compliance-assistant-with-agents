@@ -17,9 +17,25 @@ train = "compliance_assistant.main:train"
 replay = "compliance_assistant.main:replay"
 test = "compliance_assistant.main:test"
 
+[project.optional-dependencies]
+# Build/test-time only. Kept out of the runtime closure so the crew
+# never ships the CDK toolchain. Mirrors infra/requirements.txt.
+infra = [
+    "aws-cdk-lib>=2.150.0,<3.0.0",
+    "constructs>=10.3.0,<11.0.0",
+    "cdklabs.generative-ai-cdk-constructs>=0.1.290",
+    "pytest>=8.0",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/compliance_assistant"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "infra/tests"]
 
 [tool.crewai]
 type = "crew"
