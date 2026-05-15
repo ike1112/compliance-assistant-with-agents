@@ -1,0 +1,10 @@
+.venv
+.venv/
+__pycache__/
+.DS_Store
+uv.lock
+report.md
+analysis/
+.env
+.env.*
+!.env.example
