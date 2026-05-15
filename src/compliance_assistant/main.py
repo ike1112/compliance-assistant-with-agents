@@ -5,24 +5,27 @@ import warnings
 from datetime import datetime
 from compliance_assistant.crew import ComplianceAssistant
 
+# Hides a noisy warning from the pysbd library. Does not affect results.
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 
-# This main file is intended to be a way for you to run your
-# crew locally, so refrain from adding unnecessary logic into this file.
-# Replace with inputs you want to test with, it will automatically
-# interpolate any tasks and agents information
+# This file holds the entry points for the local CLI. Each function
+# below backs one command (wired up in pyproject.toml [project.scripts]):
+#   run / run_crew -> run()     the normal path
+#   train          -> train()
+#   replay         -> replay()
+#   test           -> test()
 
-# This crew is intended to to run locally
-
-# Fetch the topic defined in .env file 
+# The subject to analyze. Comes from TOPIC in .env and is required by
+# run, train, and test. It fills the {topic} placeholder in the agent
+# and task prompts.
 topic = os.environ.get('TOPIC')
 if topic is None:
     raise Exception("TOPIC is not defined. Please add the topic as an argument")
 
 def run():
-    """
-    Run the crew.
-    """
+    """Run the three agents once and write report.md. This is `crewai run`."""
+    # topic and current_year fill the {topic} and {current_year}
+    # placeholders in the agent and task prompts.
     inputs = {
         'topic': topic,
         'current_year': str(datetime.now().year)
@@ -35,9 +38,9 @@ def run():
 
 
 def train():
-    """
-    Train the crew for a given number of iterations.
-    """
+    """Run the crew repeatedly to refine it. Args: iteration count, output filename."""
+    # Only topic is passed here, so prompts that use {current_year}
+    # will not fill in under train.
     inputs = {
         "topic": topic
     }
@@ -48,9 +51,7 @@ def train():
         raise Exception(f"An error occurred while training the crew: {e}")
 
 def replay():
-    """
-    Replay the crew execution from a specific task.
-    """
+    """Re-run from a previously saved task. Arg: the task id to replay from."""
     try:
         ComplianceAssistant().crew().replay(task_id=sys.argv[1])
 
@@ -58,9 +59,7 @@ def replay():
         raise Exception(f"An error occurred while replaying the crew: {e}")
 
 def test():
-    """
-    Test the crew execution and returns the results.
-    """
+    """Run the crew several times and score the output. Args: iteration count, model name."""
     inputs = {
         "topic": topic,
         "current_year": str(datetime.now().year)
