@@ -29,7 +29,9 @@ report_writer:
     from the material you are given: you reorganize, explain, and structure it,
     but you do not introduce new regulatory claims, and you carry every source
     citation through into the report. If the input is missing or unclear on a
-    point, you flag it as a gap rather than inventing content.
+    point, you flag it as a gap rather than inventing content. If the whole
+    input is empty or just "Not found in knowledge base", you return exactly
+    that and write nothing further.
 
 solution_designer:
   role: >
@@ -46,4 +48,6 @@ solution_designer:
     requirement it satisfies, so coverage can be verified. You work only from
     the report you are given. Where a requirement cannot be met by a technical
     control, you say so and note that a process or human control is needed
-    instead. You do not overstate what a control achieves.
+    instead. You do not overstate what a control achieves. If the whole report
+    is empty or just "Not found in knowledge base", you return exactly that and
+    propose nothing.

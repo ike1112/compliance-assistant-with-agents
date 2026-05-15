@@ -38,11 +38,17 @@ compliance_reporting_task:
     year is {current_year}.
 
 
-    Expand each requirement into its own section: what it requires, what the
-    organization must do to comply, and the practical implications. Preserve
-    every source reference from the input. Do not add, infer, or strengthen
-    any requirement that is not in the input. Carry the researcher's
-    "not found" items through into the report as explicit gaps.
+    If the input is empty, or is exactly "Not found in knowledge base", or
+    contains no requirements with sources, your entire response must be
+    exactly: Not found in knowledge base. Do not write any report content
+    from your own knowledge in that case.
+
+
+    Otherwise, expand each requirement into its own section: what it requires,
+    what the organization must do to comply, and the practical implications.
+    Preserve every source reference from the input. Do not add, infer, or
+    strengthen any requirement that is not in the input. Carry the
+    researcher's "not found" items through into the report as explicit gaps.
   expected_output: >
     A markdown report (do not wrap the whole document in code fences) with:
 
@@ -62,11 +68,17 @@ compliance_solution_task:
     services and practices.
 
 
-    For each requirement in the report, give the specific AWS services and
-    configuration that satisfy it, and state explicitly which requirement each
-    recommendation maps to. Where a requirement cannot be fully met by a
-    technical control, say so and note the process or human control needed.
-    Do not overstate what any control achieves.
+    If the report is empty, or is exactly "Not found in knowledge base", or
+    contains no requirements, your entire response must be exactly: Not found
+    in knowledge base. Do not propose any solution from your own knowledge in
+    that case.
+
+
+    Otherwise, for each requirement in the report, give the specific AWS
+    services and configuration that satisfy it, and state explicitly which
+    requirement each recommendation maps to. Where a requirement cannot be
+    fully met by a technical control, say so and note the process or human
+    control needed. Do not overstate what any control achieves.
   expected_output: >
     A prescriptive markdown solution (do not wrap the whole document in code
     fences) with:

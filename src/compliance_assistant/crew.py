@@ -1,12 +1,27 @@
 import os
 from crewai import Agent, Crew, Task
 from crewai.project import CrewBase, agent, crew, task
+from crewai.tasks.conditional_task import ConditionalTask
 from crewai_tools.aws.bedrock.agents.invoke_agent_tool import BedrockInvokeAgentTool
 
 # Sets up three agents and runs them in order.
 # Only the first (the researcher) can look things up in the
 # compliance documents (a vector database).
 # The other two only use what it found.
+
+
+def _has_grounded_findings(previous_output) -> bool:
+	# True only if the previous stage produced real grounded content.
+	# When the knowledge base has no source, the researcher returns
+	# just "Not found in knowledge base". If so, the writer and the
+	# designer must not run, so they cannot turn an empty handoff
+	# into a confident report from their own memory.
+	text = (getattr(previous_output, "raw", "") or "").strip()
+	if not text:
+		return False
+	if len(text) < 200 and text.lower().startswith("not found in knowledge base"):
+		return False
+	return True
 
 
 @CrewBase
@@ -64,16 +79,22 @@ class ComplianceAssistant():
 			output_file='output/1-requirements.md'
 		)
 
+	# Skipped if the research stage found no grounded source, so the
+	# writer cannot turn an empty handoff into a report from memory.
 	@task
-	def compliance_reporting_task(self) -> Task:
-		return Task(
+	def compliance_reporting_task(self) -> ConditionalTask:
+		return ConditionalTask(
+			condition=_has_grounded_findings,
 			config=self.tasks_config['compliance_reporting_task'],
 			output_file='output/2-report.md'
 		)
 
+	# Skipped too if the report stage was skipped (its output is then
+	# empty, which fails the same check).
 	@task
-	def compliance_solution_task(self) -> Task:
-		return Task(
+	def compliance_solution_task(self) -> ConditionalTask:
+		return ConditionalTask(
+			condition=_has_grounded_findings,
 			config=self.tasks_config['compliance_solution_task'],
 			output_file='output/3-solution.md'
 		)
