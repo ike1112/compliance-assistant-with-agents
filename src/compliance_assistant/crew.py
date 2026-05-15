@@ -1,51 +1,57 @@
 import os
-from crewai import Agent, Crew, Process, Task
+from crewai import Agent, Crew, Task
 from crewai.project import CrewBase, agent, crew, task
 from crewai_tools.aws.bedrock.agents.invoke_agent_tool import BedrockInvokeAgentTool
 
-# If you want to run a snippet of code before or after the crew starts, 
-# you can use the @before_kickoff and @after_kickoff decorators
-# https://docs.crewai.com/concepts/crews#example-crew-class-with-decorators
+# Sets up three agents and runs them in order.
+# Only the first (the researcher) can look things up in the
+# compliance documents (a vector database).
+# The other two only use what it found.
+
 
 @CrewBase
 class ComplianceAssistant():
 	"""ComplianceAssistant crew"""
 
-	# Learn more about YAML configuration files here:
-	# Agents: https://docs.crewai.com/concepts/agents#yaml-configuration-recommended
-	# Tasks: https://docs.crewai.com/concepts/tasks#yaml-configuration-recommended
 	agents_config = 'config/agents.yaml'
 	tasks_config = 'config/tasks.yaml'
 
-	# Initialize the Bedrock Agent Tool
+	# No agent below sets a model. CrewAI falls back to the MODEL
+	# env var from .env (bedrock/us.amazon.nova-pro-v1:0), so all
+	# three share the same one. Change it there to change all three.
+
+	# Looks things up in the compliance documents by asking a
+	# separate AI that has already read them.
 	agent_tool = BedrockInvokeAgentTool(
-    	agent_id=os.environ.get('AGENT_ID'), 
+    	agent_id=os.environ.get('AGENT_ID'),
     	agent_alias_id=os.environ.get('AGENT_ALIAS_ID')
 	)
 
-	# If you would like to add tools to your agents, you can learn more about it here:
-	# https://docs.crewai.com/concepts/agents#agent-tools
+	# Looks up the rules and pulls out the key points.
+	# The only agent with the lookup tool.
 	@agent
-	def compliance_analyst(self) -> Agent:
+	def regulation_researcher(self) -> Agent:
 		return Agent(
-			config=self.agents_config['compliance_analyst'],
+			config=self.agents_config['regulation_researcher'],
 			tools=[self.agent_tool],
+			# Can pass part of its work to another agent.
 			allow_delegation=True,
 			verbose=True
 		)
 
+	# Turns the researcher's key points into a full written report.
 	@agent
-	def compliance_specialist(self) -> Agent:
+	def report_writer(self) -> Agent:
 		return Agent(
-			config=self.agents_config['compliance_specialist'],
-			verbose=True,
-			#allow_delegation=True
+			config=self.agents_config['report_writer'],
+			verbose=True
 		)
-	
+
+	# Works out how to build the report's requirements on AWS.
 	@agent
-	def solutions_architect(self) -> Agent:
+	def solution_designer(self) -> Agent:
 		return Agent(
-			config=self.agents_config['solutions_architect'],
+			config=self.agents_config['solution_designer'],
 			verbose=True
 		)
 
@@ -68,15 +74,20 @@ class ComplianceAssistant():
 			output_file='report.md'
 		)
 
+	# Runs the three agents in order, passing each one's output
+	# to the next.
 	@crew
 	def crew(self) -> Crew:
 		"""Creates the Compliance Automation crew"""
 
 		return Crew(
-			agents=self.agents, 
-			tasks=self.tasks, 
-			#process=Process.sequential,
+			# self.agents and self.tasks are filled in automatically by
+			# @CrewBase: it collects every @agent and @task method above,
+			# in the order they are defined.
+			agents=self.agents,
+			tasks=self.tasks,
+			# Prints each agent's steps and output while running.
+			# Set False for a silent run; output is unchanged.
 			verbose=True,
 			max_rpm=10,
-			# process=Process.hierarchical, # In case you wanna use that instead https://docs.crewai.com/how-to/Hierarchical/
 		)
