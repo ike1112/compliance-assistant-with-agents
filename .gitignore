@@ -2,7 +2,7 @@
 .venv/
 __pycache__/
 .DS_Store
-report.md
+output/
 analysis/
 .env
 .env.*

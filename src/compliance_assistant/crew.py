@@ -55,23 +55,27 @@ class ComplianceAssistant():
 			verbose=True
 		)
 
+	# Each task writes its own output so every stage can be checked.
+	# Files land in output/, numbered in run order.
 	@task
 	def compliance_analysis_task(self) -> Task:
 		return Task(
 			config=self.tasks_config['compliance_analysis_task'],
+			output_file='output/1-requirements.md'
 		)
 
 	@task
 	def compliance_reporting_task(self) -> Task:
 		return Task(
-			config=self.tasks_config['compliance_reporting_task']
+			config=self.tasks_config['compliance_reporting_task'],
+			output_file='output/2-report.md'
 		)
-	
+
 	@task
 	def compliance_solution_task(self) -> Task:
 		return Task(
 			config=self.tasks_config['compliance_solution_task'],
-			output_file='report.md'
+			output_file='output/3-solution.md'
 		)
 
 	# Runs the three agents in order, passing each one's output

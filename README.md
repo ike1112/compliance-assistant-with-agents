@@ -181,7 +181,7 @@ crewai  run
 
 ```
 
-This initializes the Crew, assembling the agents and assigning them tasks as defined in your configuration. The default setup will generate a `report.md` file in the root folder with a research summary on LLMs.
+This initializes the Crew, assembling the agents and assigning them tasks as defined in your configuration. Each agent writes its output to the `output/` folder so every stage can be checked: `output/1-requirements.md` (research), `output/2-report.md` (full report), and `output/3-solution.md` (the final AWS solution).
 
   
 

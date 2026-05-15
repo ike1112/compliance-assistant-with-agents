@@ -23,14 +23,14 @@ if topic is None:
     raise Exception("TOPIC is not defined. Please add the topic as an argument")
 
 def run():
-    """Run the three agents once and write report.md. This is `crewai run`."""
+    """Run the three agents once. This is `crewai run`. Output goes to output/."""
     # topic and current_year fill the {topic} and {current_year}
     # placeholders in the agent and task prompts.
     inputs = {
         'topic': topic,
         'current_year': str(datetime.now().year)
     }
-    
+
     try:
         ComplianceAssistant().crew().kickoff(inputs=inputs)
     except Exception as e:
