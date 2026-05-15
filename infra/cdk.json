@@ -1,0 +1,11 @@
+{
+  "app": "python app.py",
+  "context": {
+    "chunkingStrategy": "FIXED_SIZE",
+    "chunkMaxTokens": 512,
+    "chunkOverlapPercent": 20,
+    "embeddingModel": "amazon.titan-embed-text-v2:0",
+    "foundationModel": "amazon.nova-pro-v1:0",
+    "@aws-cdk/core:bootstrapQualifier": "complianceha"
+  }
+}

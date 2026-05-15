@@ -4,6 +4,10 @@ __pycache__/
 .DS_Store
 output/
 analysis/
+docs/
 .env
 .env.*
 !.env.example
+infra/cdk.out/
+.cdk.staging/
+infra/cdk.context.json
