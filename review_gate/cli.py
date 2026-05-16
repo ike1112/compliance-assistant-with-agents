@@ -79,8 +79,22 @@ def _cmd_mutation(repo: Path, phase: str) -> int:
         print(f"no pure-logic paths declared for phase {phase}",
               file=sys.stderr)
         return USAGE
-    result = run_mutation(repo, pc.pure_logic_paths,
-                          runner="python -m pytest -x -q")
+    # The kill surface for mutating module X is its unit file
+    # tests/test_X.py — small, fast, and timing-stable. A broad runner
+    # (`pytest`, or even all of `tests/`) is wrong here for two reasons:
+    # it re-runs slow, unrelated suites (infra/CDK) once per mutant, and
+    # its unstable wall time trips mutmut's "10x baseline" guard so every
+    # mutant is killed as a timeout and nothing is scored. Derive the
+    # per-module test file by the project's tests/test_<stem>.py
+    # convention; fall back to all of tests/ only if it is absent.
+    test_targets: list[str] = []
+    for pl in pc.pure_logic_paths:
+        cand = repo / "tests" / f"test_{Path(pl).stem}.py"
+        test_targets.append(
+            f"tests/test_{Path(pl).stem}.py" if cand.exists() else "tests"
+        )
+    runner = "python -m pytest -x -q " + " ".join(sorted(set(test_targets)))
+    result = run_mutation(repo, pc.pure_logic_paths, runner=runner)
     if not meets_floor(result, cfg.mutation_floor):
         print(f"mutation kill-rate {result.kill_rate:.3f} < "
               f"{cfg.mutation_floor}", file=sys.stderr)
