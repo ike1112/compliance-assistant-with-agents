@@ -36,7 +36,7 @@ Each phase is an independent sub-project with its own prp-plan and autonomous va
 | # | Phase (intent) | Depends on | Status | PRP Plan | Closes gaps |
 |---|----------------|-----------|--------|----------|-------------|
 | 1 | Bedrock knowledge-layer IaC — S3 PDF corpus, Aurora pgvector, KB + configurable chunking, Guardrail-attached Agent + alias, citations on, SSM-published ids | — | in-progress | `.claude/PRPs/plans/bedrock-knowledge-layer-iac.plan.md` | GAP-OPS-01, GAP-SEC-01, GAP-SEC-02, GAP-GENAI-01 |
-| 2 | Config & secrets hardening — fail-fast startup validation rejecting placeholders, verbose gated by env, lockfile-deploy verification, `.env.example` sync | — | pending | _(not yet planned)_ | GAP-SEC-04, GAP-OPS-04, GAP-OPS-05 |
+| 2 | Config & secrets hardening — fail-fast startup validation rejecting placeholders, verbose gated by env, lockfile-deploy verification, `.env.example` sync | — | complete | _(not yet planned)_ | GAP-SEC-04, GAP-OPS-04, GAP-OPS-05 |
 | 3 | RAG evaluation harness — retrieval / generation / task-level gold sets + LLM-as-judge + CI gate; decides the real chunking value | 1 | pending | _(not yet planned)_ | GAP-GENAI-02, GAP-GENAI-03 |
 | 4 | AgentCore Runtime IaC — host the crew (8h, scale-to-zero); AgentCore IaC maturity verified vs current docs; Fargate fallback documented | 1 (release-gated by 3) | pending | _(not yet planned)_ | GAP-REL-01, GAP-PERF-01 |
 | 5 | Observability + SLOs — AgentCore Observability wiring, model-invocation logging, `docs/SLOs.md`, composite alarms, verbose redaction | 1, 4 | pending | _(not yet planned)_ | GAP-OPS-02, GAP-SEC-03, GAP-OPS-03 |
@@ -52,6 +52,7 @@ Each phase is an independent sub-project with its own prp-plan and autonomous va
 
 ## Progress Log
 
+- 2026-05-16 — phase 2 -> complete via quality gate (base_sha=df224338b838be286670ff5d1de35abbb182c982 passed=True phase=2 round=1 ts=2026-05-16T22:20:21.298352+00:00).
 Append one line per phase status change (newest last). prp-ralph / prp-plan update this and the table above.
 
 - 2026-05-15 — PRD created. Phase 1 planned (`bedrock-knowledge-layer-iac.plan.md`) and set in-progress. Phases 2-6 pending.

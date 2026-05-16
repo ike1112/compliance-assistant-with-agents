@@ -1,0 +1,38 @@
+[
+  {
+    "name": "codex",
+    "passed": true,
+    "severity": null,
+    "summary": "Verdict APPROVE, no material findings on the clean product-only frozen diff df22433..HEAD. Re-verified: SSM fail-closed (env fallback only on genuine-unreachable or explicit USE_ENV_AGENT_IDS), agent ids stripped before placeholder validation, startup covers TOPIC/MODEL/agent ids, verbosity env-gated, .env.example has the new keys. No BLOCKER/MAJOR."
+  },
+  {
+    "name": "test_integrity",
+    "passed": true,
+    "severity": null,
+    "summary": "Mutation: agent_ids.py kill-rate 0.660 >= per-phase floor 0.65 (owner-set; agent_ids.py is defensive SSM/env I/O glue, rationale in config + findings-2-r2.md). Coverage: changed-lines (diff-cover vs base df22433) = 100% over all 36 changed src lines (agent_ids/startup/main/crew) — every added/modified src line measured, no exclusions. Both exit 0."
+  },
+  {
+    "name": "security",
+    "passed": true,
+    "severity": "MINOR",
+    "summary": "agent-skills:security-auditor PASS, 0 BLOCKER/0 MAJOR, 2 MINOR. SSM trust boundary correctly fail-closed with no residual fail-open path; whitespace/placeholder bypass closed; import-time AWS side effects eliminated; verbosity defaults OFF. MINOR: boto3.client construction errors fail closed but with a slightly over-claiming message (safe direction); !r echo low-risk for non-secret ids on a local CLI."
+  },
+  {
+    "name": "code",
+    "passed": true,
+    "severity": "MINOR",
+    "summary": "agent-skills:code-reviewer APPROVE/PASS, 0 BLOCKER/0 MAJOR. Verified: rename+alias byte-identical (mutation-frozen), fail-closed classification sound, whitespace strip correct both directions, validation first statement of all 4 entry points (import side-effect-free), parity contract sound, no scope creep. MINOR: unreachable-type whitelist narrower than prose; raw TOPIC reaches prompt (validated stripped) — both noted, no action needed."
+  },
+  {
+    "name": "regression",
+    "passed": true,
+    "severity": null,
+    "summary": "PRD Phase 2 CHECK commands verbatim, all green: CHECK1 `pytest tests/test_startup.py -q` 34 passed; CHECK4 uv.lock git-tracked + `uv sync --frozen` exit 0 + uv.lock unchanged; CHECK5 `pytest infra/tests tests` 133 passed. CHECK2 (verbosity env flag default off) and CHECK3 (.env.example parity incl USE_ENV_AGENT_IDS) assertions live in test_startup.py and pass."
+  },
+  {
+    "name": "test_engineer",
+    "passed": true,
+    "severity": "MINOR",
+    "summary": "ADVISORY (non-blocking). Suite is strong and mutation-aware; fail-closed boundary genuinely proven with real botocore types + env-ids-present negative case. Advisory follow-ups (not gate-blocking, recorded): parity self-check guard list omits USE_ENV_AGENT_IDS/agent-id keys; no negative test that the parity check can fail; AGENT_ID_SSM_PATH override branch untested. Mutation leg (leg B) is the objective bar, not this opinion."
+  }
+]
