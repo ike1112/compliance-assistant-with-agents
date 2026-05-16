@@ -20,7 +20,7 @@ _DEFAULT_AGENT_ID_PATH = "/compliance-assistant/agent-id"
 _DEFAULT_AGENT_ALIAS_ID_PATH = "/compliance-assistant/agent-alias-id"
 
 
-def _reject_placeholder(name: str, value: str) -> str:
+def reject_missing_or_placeholder(name: str, value: str) -> str:
     if not value or value.startswith(_PLACEHOLDER_PREFIX):
         raise RuntimeError(
             f"{name} is unset or still a placeholder ({value!r}). "
@@ -28,6 +28,12 @@ def _reject_placeholder(name: str, value: str) -> str:
             f"set a real value in .env."
         )
     return value
+
+
+# Backward-compat alias: the missing/placeholder primitive is reused by
+# startup.py (config hardening). Public name above; this keeps any
+# existing internal/test reference working with no behaviour change.
+_reject_placeholder = reject_missing_or_placeholder
 
 
 def _from_ssm():

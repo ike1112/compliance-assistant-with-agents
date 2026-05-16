@@ -1,9 +1,18 @@
+import os
+
 from crewai import Agent, Crew, Task
 from crewai.project import CrewBase, agent, crew, task
 from crewai.tasks.conditional_task import ConditionalTask
 from crewai_tools.aws.bedrock.agents.invoke_agent_tool import BedrockInvokeAgentTool
 
 from compliance_assistant.agent_ids import resolve_agent_ids
+from compliance_assistant.startup import crew_verbose_enabled
+
+# Off by default; set CREW_VERBOSE truthy (1/true/yes/on) for the
+# step-by-step agent log. Output of the run is unchanged either way.
+# Only crew_verbose_enabled is imported here (a pure env read), never
+# validate_startup_config, so importing this module stays config-free.
+_VERBOSE = crew_verbose_enabled(os.environ)
 
 # Sets up three agents and runs them in order.
 # Only the first (the researcher) can look things up in the
@@ -60,7 +69,7 @@ class ComplianceAssistant():
 			tools=[self._build_agent_tool()],
 			# Can pass part of its work to another agent.
 			allow_delegation=True,
-			verbose=True
+			verbose=_VERBOSE
 		)
 
 	# Turns the researcher's key points into a full written report.
@@ -68,7 +77,7 @@ class ComplianceAssistant():
 	def report_writer(self) -> Agent:
 		return Agent(
 			config=self.agents_config['report_writer'],
-			verbose=True
+			verbose=_VERBOSE
 		)
 
 	# Works out how to build the report's requirements on AWS.
@@ -76,7 +85,7 @@ class ComplianceAssistant():
 	def solution_designer(self) -> Agent:
 		return Agent(
 			config=self.agents_config['solution_designer'],
-			verbose=True
+			verbose=_VERBOSE
 		)
 
 	# Each task writes its own output so every stage can be checked.
@@ -120,8 +129,8 @@ class ComplianceAssistant():
 			# in the order they are defined.
 			agents=self.agents,
 			tasks=self.tasks,
-			# Prints each agent's steps and output while running.
-			# Set False for a silent run; output is unchanged.
-			verbose=True,
+			# Prints each agent's steps while running when CREW_VERBOSE
+			# is truthy; quiet by default. Output is unchanged either way.
+			verbose=_VERBOSE,
 			max_rpm=10,
 		)
