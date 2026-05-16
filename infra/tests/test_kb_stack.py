@@ -66,6 +66,33 @@ def test_no_opensearch_serverless_regression():
     )
 
 
+def test_aurora_is_serverless_v2_zero_min_capacity():
+    # Spec section 3.1: the whole reason Aurora beat OpenSearch
+    # Serverless is scale-to-zero. MinCapacity must be 0.
+    _template().has_resource_properties(
+        "AWS::RDS::DBCluster",
+        {
+            "ServerlessV2ScalingConfiguration": Match.object_like(
+                {"MinCapacity": 0}
+            )
+        },
+    )
+
+
+def test_aurora_data_api_enabled():
+    # Data API is how pgvector is bootstrapped without a driver or an
+    # in-VPC Lambda.
+    _template().has_resource_properties(
+        "AWS::RDS::DBCluster", {"EnableHttpEndpoint": True}
+    )
+
+
+def test_aurora_storage_encrypted():
+    _template().has_resource_properties(
+        "AWS::RDS::DBCluster", {"StorageEncrypted": True}
+    )
+
+
 def test_buckets_enforce_tls():
     # enforce_ssl adds a deny-non-TLS bucket policy; every bucket
     # must have one.
