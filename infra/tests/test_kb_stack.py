@@ -107,6 +107,24 @@ def test_knowledge_base_is_rds_backed():
     )
 
 
+def test_s3_data_source_with_configurable_chunking():
+    t = _template()
+    t.resource_count_is("AWS::Bedrock::DataSource", 1)
+    t.has_resource_properties(
+        "AWS::Bedrock::DataSource",
+        {
+            "DataSourceConfiguration": Match.object_like({"Type": "S3"}),
+            "VectorIngestionConfiguration": Match.object_like(
+                {
+                    "ChunkingConfiguration": Match.object_like(
+                        {"ChunkingStrategy": "FIXED_SIZE"}
+                    )
+                }
+            ),
+        },
+    )
+
+
 def test_kb_role_has_no_wildcard_resources():
     # Every KB-role policy statement must name a concrete resource —
     # a Resource:"*" here is the top cfn-guard finding.

@@ -13,6 +13,8 @@ scale-to-zero idle cost, so we build the cluster directly to control
 capacity and bootstrap pgvector over the RDS Data API (no Docker, no
 driver, no in-VPC Lambda).
 """
+import pathlib
+
 import aws_cdk as cdk
 from aws_cdk import (
     Duration,
@@ -23,6 +25,7 @@ from aws_cdk import (
     aws_lambda as lambda_,
     aws_rds as rds,
     aws_s3 as s3,
+    aws_s3_notifications as s3n,
     triggers,
 )
 from constructs import Construct
@@ -41,6 +44,13 @@ PGVECTOR_VECTOR_FIELD = "embedding"
 PGVECTOR_TEXT_FIELD = "chunks"
 PGVECTOR_METADATA_FIELD = "metadata"
 PGVECTOR_DB = "kb"
+
+# Asset paths are anchored to this module, not the process cwd, so
+# `cdk` (run from infra/) and pytest (run from the repo root) both
+# resolve the Lambda source.
+_INGEST_ASSET = str(
+    (pathlib.Path(__file__).parent.parent / "lambdas" / "ingest").resolve()
+)
 
 # Each statement runs on its own (the Data API takes one statement per
 # call). All are IF NOT EXISTS so the bootstrap is safe to re-run.
@@ -297,6 +307,70 @@ class ComplianceKbStack(cdk.Stack):
         # the cluster before that. Order both explicitly.
         self.knowledge_base.node.add_dependency(self.db_cluster)
         self.knowledge_base.node.add_dependency(bootstrap)
+
+        # R-KB-DS. The corpus bucket as the KB's data source. Chunking
+        # comes from CDK context, not a literal: spec section 3.1 makes
+        # the real value an eval-driven decision owned by the RAG-eval
+        # sub-project, so it stays a config knob here. RETAIN deletion
+        # policy so dropping the data source never wipes the vectors
+        # that grounded an audited report.
+        chunk_strategy = self.node.try_get_context("chunkingStrategy") or (
+            "FIXED_SIZE"
+        )
+        chunk_max_tokens = int(
+            self.node.try_get_context("chunkMaxTokens") or 512
+        )
+        chunk_overlap = int(
+            self.node.try_get_context("chunkOverlapPercent") or 20
+        )
+        data_source = bedrock.CfnDataSource(
+            self,
+            "CorpusDataSource",
+            name="compliance-corpus",
+            knowledge_base_id=self.knowledge_base.attr_knowledge_base_id,
+            data_deletion_policy="RETAIN",
+            data_source_configuration=bedrock.CfnDataSource.DataSourceConfigurationProperty(
+                type="S3",
+                s3_configuration=bedrock.CfnDataSource.S3DataSourceConfigurationProperty(
+                    bucket_arn=self.corpus_bucket.bucket_arn
+                ),
+            ),
+            vector_ingestion_configuration=bedrock.CfnDataSource.VectorIngestionConfigurationProperty(
+                chunking_configuration=bedrock.CfnDataSource.ChunkingConfigurationProperty(
+                    chunking_strategy=chunk_strategy,
+                    fixed_size_chunking_configuration=bedrock.CfnDataSource.FixedSizeChunkingConfigurationProperty(
+                        max_tokens=chunk_max_tokens,
+                        overlap_percentage=chunk_overlap,
+                    ),
+                )
+            ),
+        )
+
+        # Re-index when a PDF is uploaded. Inline-dir asset (zipped,
+        # not Docker-built). IAM scoped to StartIngestionJob on this
+        # KB only — no wildcard.
+        ingest_fn = lambda_.Function(
+            self,
+            "IngestFn",
+            runtime=lambda_.Runtime.PYTHON_3_12,
+            handler="handler.handler",
+            code=lambda_.Code.from_asset(_INGEST_ASSET),
+            timeout=Duration.minutes(1),
+            environment={
+                "KB_ID": self.knowledge_base.attr_knowledge_base_id,
+                "DATA_SOURCE_ID": data_source.attr_data_source_id,
+            },
+        )
+        ingest_fn.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["bedrock:StartIngestionJob"],
+                resources=[self.knowledge_base.attr_knowledge_base_arn],
+            )
+        )
+        self.corpus_bucket.add_event_notification(
+            s3.EventType.OBJECT_CREATED,
+            s3n.LambdaDestination(ingest_fn),
+        )
 
         cdk.CfnOutput(self, "CorpusBucketName", value=self.corpus_bucket.bucket_name)
         cdk.CfnOutput(
