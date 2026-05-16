@@ -1,0 +1,21 @@
+{
+  "requirement_coverage_ids": [
+    "pos-001",
+    "pos-004",
+    "pos-008",
+    "pos-012",
+    "pos-015",
+    "pos-016",
+    "pos-022",
+    "pos-023",
+    "pos-028",
+    "pos-030",
+    "pos-031",
+    "pos-033",
+    "pos-035",
+    "pos-036",
+    "pos-038",
+    "pos-039"
+  ],
+  "rationale": "This subset spans network security controls, stored account data protection, malware controls, secure development, access control, authentication, logging, security testing, governance, service provider management, and incident response. Each selected positive has unambiguous expected_requirements suitable for requirement-coverage scoring."
+}

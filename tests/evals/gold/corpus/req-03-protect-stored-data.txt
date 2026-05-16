@@ -1,0 +1,50 @@
+PCI DSS Requirement 3: Protect Stored Account Data
+
+Scope and Intent
+Requirement 3 covers stored account data, including storage minimization, rendering stored PAN unreadable, cryptographic key management, and restrictions on sensitive authentication data. The requirement expects entities to understand where account data is stored and to reduce both the amount and exposure of that data.
+
+Data Retention and Storage Minimization
+Stored account data should exist only where there is a legitimate business or legal reason. Retention practices must define what is stored, why it is stored, where it is stored, and when it is securely deleted. Unknown repositories, old exports, and forgotten reports create avoidable risk.
+
+PCI DSS v4.0 Requirement 3.2.1 requires account data storage to be kept to the minimum needed for legal, regulatory, or business reasons. The entity must define retention requirements and securely delete account data when it is no longer needed.
+
+PCI DSS v4.0 Requirement 3.2.2 requires sensitive authentication data not to be stored after authorization, even if the data is encrypted. This includes full track data, card verification codes or values, and PIN or PIN block data.
+
+PCI DSS v4.0 Requirement 3.2.3 requires stored sensitive authentication data before authorization to be encrypted with strong cryptography. The data must be securely deleted after authorization is complete.
+
+Masking and Display of PAN
+Displaying a full PAN should be rare and justified by a role-based business need. Masking controls reduce casual exposure in screens, reports, logs, dashboards, and support tools. Truncation and masking are not the same as strong storage protection, but they are important display controls.
+
+PCI DSS v4.0 Requirement 3.4.1 requires PAN to be masked when displayed so that only personnel with a legitimate business need can see more than the BIN and last four digits. The business need to view additional digits must be documented.
+
+PCI DSS v4.0 Requirement 3.4.2 requires technical controls to prevent copy or relocation of PAN when remote-access technologies are used, except where explicitly authorized for a defined business need. This reduces uncontrolled spread of PAN through remote sessions.
+
+Rendering Stored PAN Unreadable
+The central storage protection requirement is that stored PAN must be unreadable wherever it is retained. Acceptable approaches include strong cryptography, truncation, index tokens, and one-way hashes based on strong cryptography. The entity must implement the method consistently wherever stored PAN exists.
+
+PCI DSS v4.0 Requirement 3.5.1 requires stored PAN to be rendered unreadable anywhere it is stored. Acceptable methods include one-way hashes based on strong cryptography, truncation, index tokens, or strong cryptography with associated key-management processes.
+
+PCI DSS v4.0 Requirement 3.5.1.1 requires keyed cryptographic hashes when hashing is used to render PAN unreadable. The keyed approach helps protect against guessing attacks against stored PAN values.
+
+PCI DSS v4.0 Requirement 3.5.1.2 limits reliance on disk-level or partition-level encryption for rendering PAN unreadable. For non-removable media, PAN must also be rendered unreadable by another mechanism that meets Requirement 3.5.1.
+
+Cryptographic Architecture
+Cryptography should be understood as an architecture rather than a product setting. The entity should know where keys are generated, stored, distributed, rotated, retired, and destroyed. People with key-management responsibilities need defined duties and evidence that those duties are performed.
+
+PCI DSS v4.0 Requirement 3.6.1 requires a documented description of the cryptographic architecture used to protect stored account data. The description should include algorithms, protocols, key strength, key usage, and the locations of keys and protected data.
+
+PCI DSS v4.0 Requirement 3.6.1.1 requires service providers to document controls that prevent the same cryptographic keys from being used in production and test environments. This reduces the risk that weaker test practices expose production data.
+
+PCI DSS v4.0 Requirement 3.6.1.2 requires secret and private keys used to protect stored account data to be stored in one or more secure forms. Examples include encryption under a key-encrypting key, storage in a secure cryptographic device, or split knowledge with dual control.
+
+Key Lifecycle Management
+Key-management controls must cover the whole lifecycle. Keys should be generated strongly, distributed securely, stored with limited access, changed when required, retired when no longer needed, and destroyed when appropriate. A weak key-management process can undermine strong cryptography.
+
+PCI DSS v4.0 Requirement 3.6.4 requires cryptographic keys to be changed at the end of their defined cryptoperiod. Keys must also be changed when someone with knowledge of the key leaves or changes responsibilities, or when a key is suspected or known to be compromised.
+
+PCI DSS v4.0 Requirement 3.6.5 requires procedures to retire, replace, or destroy keys that have reached the end of their cryptoperiod or are no longer needed. Retired keys may be kept only when needed for decrypting historical data and must remain protected.
+
+PCI DSS v4.0 Requirement 3.7.1 requires security policies and operational procedures for Requirement 3 to be documented, kept current, used, and known to affected personnel. Personnel must know how stored account data and keys are handled in daily operations.
+
+Operational Evidence
+Useful evidence includes data discovery results, retention schedules, secure deletion logs, masking rules, encryption configurations, key inventories, key custodian records, and diagrams showing storage locations. The evidence should demonstrate that stored account data is intentionally minimized and protected.

@@ -1,0 +1,10 @@
+{"id":"neg-001","question":"What are HIPAA Security Rule requirements for audit controls on electronic protected health information?"}
+{"id":"neg-002","question":"Under SOX Section 404, what management attestation language is required for internal control over financial reporting?"}
+{"id":"neg-003","question":"What GDPR lawful basis should a bank use for cross-border transfers of employee payroll data?"}
+{"id":"neg-004","question":"What are GLBA Safeguards Rule requirements for customer information disposal by financial institutions?"}
+{"id":"neg-005","question":"What PCI DSS Requirement 2 controls apply to vendor default passwords and secure configuration hardening?"}
+{"id":"neg-006","question":"What PCI DSS Requirement 4 encryption controls apply to transmission of PAN over open public networks?"}
+{"id":"neg-007","question":"What PCI DSS Requirement 9 physical security controls apply to visitor badges and media storage?"}
+{"id":"neg-008","question":"What ISO 27001 Annex A control requires supplier relationship monitoring?"}
+{"id":"neg-009","question":"What FFIEC Cybersecurity Assessment Tool maturity level applies to mobile banking authentication?"}
+{"id":"neg-010","question":"What NIST SP 800-53 control requires continuous monitoring strategy implementation?"}

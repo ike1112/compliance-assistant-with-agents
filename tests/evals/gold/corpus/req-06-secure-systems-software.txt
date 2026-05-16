@@ -1,0 +1,50 @@
+PCI DSS Requirement 6: Develop and Maintain Secure Systems and Software
+
+Scope and Intent
+Requirement 6 covers secure development, vulnerability remediation, change control, and protection of public-facing web applications. It applies to custom software, bespoke scripts, packaged applications, and system components that require security updates. The common theme is that security must be built into systems and maintained as those systems change.
+
+Vulnerability Identification and Patching
+Entities must identify security vulnerabilities that affect in-scope systems and remediate them in a risk-based timeframe. Patch management should include operating systems, applications, libraries, containers, firmware, and other software components that could affect the cardholder data environment.
+
+PCI DSS v4.0 Requirement 6.3.1 requires security vulnerabilities to be identified and managed. The entity must assign risk rankings to newly discovered vulnerabilities and address them according to that risk.
+
+PCI DSS v4.0 Requirement 6.3.3 requires security patches and updates for critical or high-security vulnerabilities to be installed within one month of release. Other applicable patches must be installed within an appropriate timeframe based on risk.
+
+PCI DSS v4.0 Requirement 6.3.2 requires an inventory of bespoke and custom software, and third-party software components incorporated into that software, to be maintained. The inventory supports awareness of components that may need vulnerability remediation.
+
+Secure Software Development
+Software that handles payment data should be designed and built using secure coding practices. Developers need guidance for common vulnerability classes, and code should be reviewed before release. The review can be manual, automated, or a combination, but it should be performed by qualified personnel or tools.
+
+PCI DSS v4.0 Requirement 6.2.1 requires bespoke and custom software to be developed securely in accordance with industry standards or best practices. Secure development must address the software lifecycle and common attack techniques.
+
+PCI DSS v4.0 Requirement 6.2.2 requires software development personnel working on bespoke and custom software to receive training at least once every 12 months. Training must be relevant to their job function and development languages.
+
+PCI DSS v4.0 Requirement 6.2.3 requires bespoke and custom software to be reviewed before being released into production or to customers. The review must identify and correct coding vulnerabilities.
+
+Change Management
+Changes to in-scope systems should not bypass security review. Change control evidence should show why the change occurred, what was tested, who approved it, and how the entity can recover if the change fails. Emergency changes still need retrospective review.
+
+PCI DSS v4.0 Requirement 6.5.1 requires changes to system components in the cardholder data environment to follow documented change control procedures. The procedures must include impact documentation, approval, testing, and back-out plans.
+
+PCI DSS v4.0 Requirement 6.5.2 requires significant changes to be confirmed as not adversely impacting PCI DSS scope or security controls. The entity must validate that applicable controls remain in place after the change.
+
+PCI DSS v4.0 Requirement 6.5.3 requires pre-production environments to be separated from production environments and access controls to enforce that separation. Production account data must not be used in pre-production environments unless it is protected with controls equivalent to production.
+
+Protection of Public-Facing Web Applications
+Public-facing web applications are frequent attack targets. They need either periodic application vulnerability assessments or an automated technical solution that detects and prevents web-based attacks. This control is distinct from general patching and secure coding because it focuses on runtime exposure to web attacks.
+
+PCI DSS v4.0 Requirement 6.4.1 requires public-facing web applications to be protected either by manual or automated application vulnerability security assessments at least once every 12 months and after significant changes, or by an automated technical solution that detects and prevents web-based attacks.
+
+PCI DSS v4.0 Requirement 6.4.2 requires an automated technical solution for public-facing web applications to be installed in front of the applications and actively running. The solution must detect and prevent web-based attacks.
+
+PCI DSS v4.0 Requirement 6.4.3 requires payment page scripts loaded and executed in the consumer browser to be managed. The entity must authorize each script, assure script integrity, and maintain an inventory with written justification.
+
+Payment Page Integrity
+Modern payment pages often include scripts from analytics, tag managers, fraud tools, chat widgets, and hosted payment functions. A compromised or unauthorized script can alter payment forms or skim account data before it reaches the merchant or service provider. The inventory and integrity controls should therefore include both internally hosted and third-party scripts.
+
+PCI DSS v4.0 Requirement 6.4.3 is focused on scripts that are loaded and executed in the consumer browser on payment pages. Authorization, integrity assurance, and documented justification are required for each such script.
+
+PCI DSS v4.0 Requirement 6.5.1 also supports payment page security because script changes and deployment changes must follow change control. Unauthorized production changes should be prevented by approval, testing, and deployment controls.
+
+Operational Evidence
+Evidence for Requirement 6 includes vulnerability intake records, patch deployment reports, software bills of material or component inventories, developer training records, code review results, change tickets, web application assessment reports, web attack prevention configurations, and payment script inventories.

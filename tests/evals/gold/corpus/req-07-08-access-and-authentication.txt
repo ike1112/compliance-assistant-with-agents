@@ -1,0 +1,52 @@
+PCI DSS Requirements 7 and 8: Access Control and Authentication
+
+Scope and Intent
+Requirements 7 and 8 work together. Requirement 7 limits access based on business need to know, while Requirement 8 verifies the identity of users and systems before access is granted. Together they reduce the chance that a compromised or unnecessary account can reach account data or security functions.
+
+Need-to-Know Access
+Access should be intentionally granted, limited, and reviewed. Broad standing access creates avoidable risk, especially for administrative privileges and access to stored cardholder data. Roles should map to job responsibilities, and exceptions should be justified.
+
+PCI DSS v4.0 Requirement 7.2.1 requires an access control model that includes granting access based on business need to know, least privileges required for the job, and access assignments based on individual personnel job classification and function.
+
+PCI DSS v4.0 Requirement 7.2.2 requires access privileges to be assigned to users, including privileged users, based on job classification and function. The assigned privileges must be approved by authorized personnel.
+
+PCI DSS v4.0 Requirement 7.2.4 requires user accounts and related access privileges to be reviewed at least once every six months. The review must confirm that access remains appropriate based on job function.
+
+Privileged and Application Access
+Privileged access can change configurations, read sensitive data, disable controls, or create other accounts. Application and system accounts also need governance because they may hold powerful credentials even when no human logs in interactively.
+
+PCI DSS v4.0 Requirement 7.2.5 requires all application and system accounts and related access privileges to be assigned and managed based on least privilege and business need. Use of these accounts must be limited to the systems, applications, or processes that need them.
+
+PCI DSS v4.0 Requirement 7.2.6 requires all user access to query repositories of stored cardholder data to be restricted. Direct access to databases or repositories must be limited to authorized administrators and allowed application functions.
+
+PCI DSS v4.0 Requirement 7.3.1 requires security policies and operational procedures for Requirement 7 to be documented, kept current, used, and known to affected personnel. Personnel must understand how access is requested, approved, changed, and removed.
+
+User Identification and Account Lifecycle
+Each user needs a unique identity so actions can be traced to an individual. Shared or generic accounts undermine accountability and should be avoided except where specifically allowed and tightly managed. Account lifecycle processes should quickly remove access when personnel leave or no longer need it.
+
+PCI DSS v4.0 Requirement 8.2.1 requires all users to be assigned a unique ID before access to system components or cardholder data is allowed. Unique IDs support accountability for actions performed in the environment.
+
+PCI DSS v4.0 Requirement 8.2.2 requires group, shared, or generic accounts and other shared authentication credentials to be used only when necessary on an exception basis. Their use must be approved, documented, and managed to preserve accountability.
+
+PCI DSS v4.0 Requirement 8.2.6 requires inactive user accounts to be removed or disabled within 90 days of inactivity. This reduces the opportunity for dormant accounts to be misused.
+
+Authentication Factors and Password Controls
+Authentication controls should resist guessing, reuse, and brute-force attacks. Password or passphrase rules must be paired with lockout, change, and reset processes that protect accounts without creating unnecessary operational risk.
+
+PCI DSS v4.0 Requirement 8.3.6 requires passwords and passphrases used as authentication factors to meet defined complexity and length parameters. The parameters must make authentication secrets resistant to guessing.
+
+PCI DSS v4.0 Requirement 8.3.9 requires passwords or passphrases to be changed at least once every 90 days, or for access to resources to be dynamically analyzed to determine whether accounts remain secure. The requirement applies when passwords or passphrases are used as the only authentication factor.
+
+PCI DSS v4.0 Requirement 8.3.4 requires invalid authentication attempts to be limited by locking out the user ID after not more than 10 attempts. The lockout must last at least 30 minutes or until an administrator enables the user ID.
+
+Multi-Factor Authentication
+Multi-factor authentication is a major control for reducing account takeover risk. It is required for all access into the cardholder data environment and for administrative access. MFA mechanisms should be resistant to replay and should not allow one factor to compromise another.
+
+PCI DSS v4.0 Requirement 8.4.1 requires multi-factor authentication for all non-console administrative access into the cardholder data environment. This applies to administrative access from outside or inside the entity network.
+
+PCI DSS v4.0 Requirement 8.4.2 requires multi-factor authentication for all access into the cardholder data environment. The control is broader than remote access and applies to all users accessing the cardholder data environment.
+
+PCI DSS v4.0 Requirement 8.4.3 requires multi-factor authentication for all remote network access originating from outside the entity network that could access or impact the cardholder data environment. This includes access by personnel, contractors, and vendors.
+
+Operational Evidence
+Evidence for Requirements 7 and 8 includes access control matrices, approvals, periodic access reviews, privileged access listings, account inventories, identity provider settings, lockout configurations, MFA enforcement policies, deprovisioning records, and exceptions for shared accounts.
