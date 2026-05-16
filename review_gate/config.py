@@ -19,6 +19,18 @@ class GateConfigError(Exception):
 class PhaseConfig:
     pure_logic_paths: list[str]
     frozen_fixture_paths: list[str]
+    # Optional per-phase overrides of the global floors. A phase whose
+    # pure-logic module is defensive I/O glue (equivalent-mutant heavy)
+    # can carry a lower, owner-set mutation bar without weakening the
+    # global default. None => use the global floor.
+    mutation_floor: float | None = None
+    coverage_floor: float | None = None
+
+    def mutation_bar(self, default: float) -> float:
+        return self.mutation_floor if self.mutation_floor is not None else default
+
+    def coverage_bar(self, default: float) -> float:
+        return self.coverage_floor if self.coverage_floor is not None else default
 
 
 @dataclass(frozen=True)
@@ -63,9 +75,17 @@ def load_config(path: Path) -> GateConfig:
         if not isinstance(pc["pure_logic_paths"], list) \
                 or not isinstance(pc["frozen_fixture_paths"], list):
             raise GateConfigError(f"phase '{phase_id}' path entries must be lists")
+
+        def _opt_floor(key: str) -> float | None:
+            if key not in pc:
+                return None
+            return _float_in_unit(pc, key)  # validated in [0,1] or raises
+
         phases[str(phase_id)] = PhaseConfig(
             pure_logic_paths=[str(x) for x in pc["pure_logic_paths"]],
             frozen_fixture_paths=[str(x) for x in pc["frozen_fixture_paths"]],
+            mutation_floor=_opt_floor("mutation_floor"),
+            coverage_floor=_opt_floor("coverage_floor"),
         )
 
     return GateConfig(mutation_floor, coverage_floor, phases)

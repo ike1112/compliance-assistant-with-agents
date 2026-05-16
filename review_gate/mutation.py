@@ -90,6 +90,21 @@ def run_mutation(repo: Path, paths: list[str], runner: str) -> MutationResult:
             raise FileNotFoundError(
                 f"declared pure-logic path missing, cannot gate: {p}"
             )
+    # Preflight: refuse to run if a target has uncommitted changes. The
+    # post-run restore does `git checkout -- <target>`, which would
+    # otherwise silently destroy real local edits if the worktree was
+    # dirty. The gate is meant to judge committed work, so a dirty
+    # target is a hard, fail-closed error — never a clobber.
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain", "--", *paths],
+        cwd=str(repo), check=False, capture_output=True,
+        encoding="utf-8", errors="replace",
+    ).stdout.strip()
+    if dirty:
+        raise RuntimeError(
+            "mutation target has uncommitted changes; commit or stash "
+            f"before gating (refusing to risk clobbering them):\n{dirty}"
+        )
     # Drop any stale cache so a crashed `mutmut run` cannot report a
     # prior run's (possibly passing) numbers.
     cache = repo / ".mutmut-cache"

@@ -65,20 +65,31 @@ Exit code 0 = ok/PASS, 1 = gate-FAIL (act on it), 2 = usage/IO (HALT for human).
      output to a verdict: `severity` = the highest it reports
      (`BLOCKER`/`MAJOR`/`MINOR`/null), `passed` = no BLOCKER/MAJOR.
    - **B · test-integrity (objective, BLOCKING).** Run
-     `python -m review_gate.cli mutation --phase <P>` AND a coverage
-     run **scoped to this phase's own logic**: `python -m pytest
-     --cov=<m> [--cov=<m> ...] --cov-fail-under=<coverage_floor*100>
-     -q` where the `<m>` set is this phase's `pure_logic_paths` (from
-     `.claude/review-gate.config.json`, read-only) plus any new `src/`
-     module added in the judged diff (`git diff --name-only
-     <base_sha>..HEAD -- src` filtered to `.py`). Rationale: a bare
-     `--cov` measures the whole repo (incl. prior phases' modules and
-     framework glue that needs heavy deps absent from the gate
-     interpreter), so the floor would be unreachable for a narrowly-
-     scoped phase no matter how well its own code is tested. Scoping to
-     the phase's logic keeps the bar meaningful and non-gameable
-     (whole-file coverage of those modules; `coverage_floor` itself is
-     unchanged). `passed` = both exit 0.
+     `python -m review_gate.cli mutation --phase <P>` (the gate applies
+     this phase's `mutation_floor` override if set, else the global)
+     AND a **changed-lines** coverage gate on every line this phase
+     added or modified:
+
+     ```
+     python -m pytest --cov=<pkg> --cov-context=test \
+       --cov-report=xml -q tests
+     diff-cover coverage.xml --compare-branch <base_sha> \
+       --fail-under=<coverage_floor*100> \
+       --src-roots src
+     ```
+
+     `<pkg>` is the importable top-level package name (e.g.
+     `compliance_assistant`) — **not** a file path; under a `src/`
+     layout + `PYTHONPATH=src` a path-form `--cov` matches nothing and
+     silently measures zero. `diff-cover` then enforces the floor on the
+     intersection of "lines changed in `<base_sha>..HEAD`" and the
+     coverage data — so it covers **all** added/modified `src/` lines
+     (closing the modified-but-not-pure-logic bypass), needs no heavy
+     framework deps (untouched lines in glue modules are out of scope by
+     construction, not by an exclusion list), and cannot be gamed by
+     moving code into an existing file. `coverage_floor` is unchanged;
+     it now reads as "≥ X% of the lines this phase touched are tested".
+     `passed` = both the mutation command and `diff-cover` exit 0.
    - **C · security.** Dispatch the Agent tool with
      `subagent_type="agent-skills:security-auditor"`, fresh context, asked
      to review only the frozen diff. Normalize to a verdict.

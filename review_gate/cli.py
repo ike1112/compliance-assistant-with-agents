@@ -95,9 +95,10 @@ def _cmd_mutation(repo: Path, phase: str) -> int:
         )
     runner = "python -m pytest -x -q " + " ".join(sorted(set(test_targets)))
     result = run_mutation(repo, pc.pure_logic_paths, runner=runner)
-    if not meets_floor(result, cfg.mutation_floor):
-        print(f"mutation kill-rate {result.kill_rate:.3f} < "
-              f"{cfg.mutation_floor}", file=sys.stderr)
+    floor = pc.mutation_bar(cfg.mutation_floor)
+    if not meets_floor(result, floor):
+        print(f"mutation kill-rate {result.kill_rate:.3f} < {floor}",
+              file=sys.stderr)
         return GATE_FAIL
     print(f"mutation kill-rate {result.kill_rate:.3f}")
     return OK
