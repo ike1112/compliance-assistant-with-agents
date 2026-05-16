@@ -44,7 +44,9 @@ Each phase is an independent sub-project with its own prp-plan and autonomous va
 
 **Parallelism:** Phases 1 and 2 have no dependencies on each other and may run concurrently in separate worktrees.
 
-**Next actionable:** Phase 1 (in-progress, plan ready for prp-ralph). Phase 2 may start in parallel once planned.
+**`/goal` scope:** the `CHECK:` items of Phases 2–6 (see Success Criteria). All `HUMAN-GATE:` items (billable `cdk deploy`/`bootstrap`, post-deploy live verification) are excluded — `/goal` must not run or auto-pass them; it stops and reports when only a HUMAN-GATE remains.
+
+**Next actionable:** Phase 1 autonomous build is done (HUMAN-GATE deploy outstanding → still `in-progress`). Phase 2 (independent) and Phase 3 (RAG evals — its CHECK suite is deterministic/offline, so it does **not** need the deployed stack, only Phase 1's committed code + `cdk.json`) are both `/goal`-actionable now and parallelizable.
 
 ---
 
@@ -57,9 +59,62 @@ Append one line per phase status change (newest last). prp-ralph / prp-plan upda
 
 ---
 
-## Per-phase completion criteria
+## Success Criteria (per phase, machine-checkable)
 
-A phase moves to `complete` only when: its prp-plan's Acceptance Criteria all pass; its autonomous validation gates (synth / cfn-lint / cfn-guard / best-practices / cost / tests, as applicable) are green or Reasoning-Gate-justified; and no `docs/` files were staged. Operator-gated deploys (e.g., Phase 1 Task 13) are recorded here when the operator approves and runs them — they are never auto-completed by the loop.
+**Rule for `/goal` / prp-ralph:** a phase flips to `complete` only when **every**
+`CHECK:` command below exits 0. `CHECK:` items are autonomous and gating.
+`HUMAN-GATE:` items are operator-only (billable/irreversible deploys) — never
+run, auto-passed, or marked complete by an autonomous driver; they are recorded
+in the Progress Log when the operator does them. A phase with outstanding
+`HUMAN-GATE:` items stays `in-progress`. Baseline for every phase: prior phases'
+checks still green (no regression), and nothing under `docs/` is staged
+(it is gitignored).
+
+Thresholds below are **interview-grade strict** (Phase 3) and **test-enforced**
+(Phase 5) per the owner's decision 2026-05-16.
+
+### Phase 1 — Bedrock knowledge-layer IaC
+- CHECK: `cd infra && npx aws-cdk@latest synth --all -q` exits 0.
+- CHECK: `pytest infra/tests -q` all pass; asserts include OpenSearch count == 0, RDS `ServerlessV2ScalingConfiguration.MinCapacity == 0`, every IAM policy resource ≠ `"*"`, all S3 buckets block public + KMS/TLS, KB Type==RDS, 2 SSM params with the exact crew-contract names.
+- CHECK: `cfn-lint` on both templates → 0 `E` findings.
+- CHECK: `ComplianceAgentStack` cfn-guard COMPLIANT (0 violations).
+- CHECK: `PYTHONPATH=src python -c "import compliance_assistant.crew"` exits 0.
+- HUMAN-GATE: operator `cdk bootstrap`+`deploy` to `083340857999/us-east-1`; KB-stack cfn-guard resolved/justified pre-deploy; post-deploy upload a sample PDF → ingestion job `COMPLETE` → `crewai run` → `output/2-report.md` ends with a non-empty `## Sources` block. Phase → `complete` only after this.
+
+### Phase 2 — Config & secrets hardening
+- CHECK: `pytest tests/test_startup.py -q` passes — startup raises a clear error on missing **or** `replace-with-` placeholder for every required var (TOPIC, MODEL, and the agent-id resolution path), not just TOPIC.
+- CHECK: a test asserts crew verbosity follows an env flag and defaults **off**.
+- CHECK: `.env.example` parity test — every `os.environ` key read under `src/` appears in `.env.example`.
+- CHECK: `uv sync --frozen` exits 0 and `uv.lock` is git-tracked.
+- CHECK: full prior suite (`pytest infra/tests tests`) still green.
+
+### Phase 3 — RAG evaluation harness (interview-grade strict)
+- CHECK: gold set committed at `tests/evals/gold/` — ≥ 30 positive items across the in-scope regulations (each: question + ≥1 expected source-passage locator) **and** ≥ 8 out-of-corpus negative questions.
+- CHECK: `pytest tests/evals -m gate` exits 0 **deterministically offline** (recorded retrieval/generation fixtures, no live Bedrock spend); same suite runnable `-m live` (opt-in).
+- CHECK (retrieval, mean over gold set): context-recall ≥ 0.90, context-precision ≥ 0.80, MRR ≥ 0.80.
+- CHECK (generation, LLM-as-judge; judge prompt+rubric committed): faithfulness/groundedness ≥ 0.95, citation-correctness ≥ 0.95, hallucination-rate ≤ 0.05.
+- CHECK (task-level): not-found-honesty == 1.0 (every out-of-corpus question answered with an explicit "not in knowledge base"; **zero** fabricated requirements); requirement-coverage ≥ 0.90 on the labeled subset.
+- CHECK (chunking decision = the Phase 1↔3 handoff): harness scores ≥ 2 chunking configs (FIXED_SIZE baseline + ≥1 of HIERARCHICAL/SEMANTIC), writes `tests/evals/report.md`; selection rule = max context-recall@k subject to faithfulness ≥ 0.95; the winning chunking values are written into `infra/cdk.json` context and a test asserts `cdk.json` == the report's winner.
+- CHECK: `docs/evals.md` documents metrics, thresholds, judge model, run instructions (untracked is fine; file must exist).
+
+### Phase 4 — AgentCore Runtime IaC
+- CHECK: `cd infra && npx aws-cdk@latest synth --all -q` exits 0 with the runtime stack; `pytest infra/tests` asserts the AgentCore Runtime resource is present **or** (if AgentCore IaC is verified immature against current AWS docs) the documented ECS Fargate fallback: run-to-completion task, arm64, no NAT, S3-versioned report output.
+- CHECK: AgentCore-vs-Fargate decision + the current-docs verification recorded in `infra/README.md` with a Reasoning-Gate justification.
+- CHECK: cfn-lint 0 errors; cfn-guard compliant or justified; no IAM `Resource:"*"`.
+- CHECK: runtime runbook names the Phase 3 eval gate as a required pre-deploy step.
+- HUMAN-GATE: operator deploy of the runtime stack (billable) — excluded from `/goal`.
+
+### Phase 5 — Observability + SLOs (test-enforced)
+- CHECK: `docs/SLOs.md` exists with **numeric** targets: per-stage + end-to-end latency p50/p95, quality (reuses Phase 3 faithfulness/citation bars), run-success-rate availability, and an explicit 30-day error budget per SLO.
+- CHECK: `pytest tests/test_tracing.py -q` passes — a captured run (recorded fixture; opt-in live) emits exactly 3 stage spans (researcher / writer / designer), **each with non-empty input, output, and tool-call list** (this is the owner's "monitor input and output at each agent level", made binary).
+- CHECK: `pytest infra/tests` asserts Bedrock model-invocation logging resource present, a CloudWatch dashboard present, and **alarm count == count of SLOs in `SLOs.md`** with **each alarm threshold == the matching `SLOs.md` number** (test parses both and cross-checks).
+- CHECK: redaction test — feeding a known fake PAN/email through the logging path asserts it is masked/absent in emitted logs/traces.
+- CHECK: cfn-lint 0 errors; cfn-guard compliant or justified; prior suites green.
+
+### Phase 6 — Evidence-backed prod-readiness analysis
+- CHECK: `docs/analysis/2026-05-16-compliance-prod-readiness.md` exists; a grep script asserts: all 7 WA pillars present, each with ≥1 six-field Reasoning-Gate finding **or** an explicit "checked, not a gap because X"; every gap has all six fields; no `TBD`/placeholder; every `R-*`/`GAP-*` id cross-references resolve (same integrity checks as the spine plan).
+- CHECK: `analyze_cdk_project` + cfn-guard receipts saved under `docs/analysis/_evidence/`.
+- HUMAN-GATE: none (analysis only; produced against the synthesized templates, no deploy required).
 
 ## Out of scope (spec §6)
 
