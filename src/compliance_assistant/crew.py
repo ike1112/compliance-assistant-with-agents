@@ -1,8 +1,9 @@
-import os
 from crewai import Agent, Crew, Task
 from crewai.project import CrewBase, agent, crew, task
 from crewai.tasks.conditional_task import ConditionalTask
 from crewai_tools.aws.bedrock.agents.invoke_agent_tool import BedrockInvokeAgentTool
+
+from compliance_assistant.agent_ids import resolve_agent_ids
 
 # Sets up three agents and runs them in order.
 # Only the first (the researcher) can look things up in the
@@ -36,11 +37,19 @@ class ComplianceAssistant():
 	# three share the same one. Change it there to change all three.
 
 	# Looks things up in the compliance documents by asking a
-	# separate AI that has already read them.
-	agent_tool = BedrockInvokeAgentTool(
-    	agent_id=os.environ.get('AGENT_ID'),
-    	agent_alias_id=os.environ.get('AGENT_ALIAS_ID')
-	)
+	# separate AI that has already read them. Built lazily (below) so
+	# importing this module never needs configured ids — resolution
+	# happens when the crew actually runs, and fails fast there.
+	def _build_agent_tool(self) -> BedrockInvokeAgentTool:
+		# Ids come from the infra stack via SSM (env fallback for
+		# local runs). enable_trace makes the agent return the source
+		# passages it grounded on, which become the report's citations.
+		agent_id, agent_alias_id = resolve_agent_ids()
+		return BedrockInvokeAgentTool(
+			agent_id=agent_id,
+			agent_alias_id=agent_alias_id,
+			enable_trace=True
+		)
 
 	# Looks up the rules and pulls out the key points.
 	# The only agent with the lookup tool.
@@ -48,7 +57,7 @@ class ComplianceAssistant():
 	def regulation_researcher(self) -> Agent:
 		return Agent(
 			config=self.agents_config['regulation_researcher'],
-			tools=[self.agent_tool],
+			tools=[self._build_agent_tool()],
 			# Can pass part of its work to another agent.
 			allow_delegation=True,
 			verbose=True
