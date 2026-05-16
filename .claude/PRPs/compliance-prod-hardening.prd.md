@@ -68,7 +68,10 @@ run, auto-passed, or marked complete by an autonomous driver; they are recorded
 in the Progress Log when the operator does them. A phase with outstanding
 `HUMAN-GATE:` items stays `in-progress`. Baseline for every phase: prior phases'
 checks still green (no regression), and nothing under `docs/` is staged
-(it is gitignored).
+(it is gitignored). A phase reaches `complete` only via the `phase-gate`
+orchestrator's `complete` chokepoint after the independent review panel
+passes; prp-ralph finishing its plan is necessary but **not** sufficient,
+and prp-ralph never edits the `Status` column.
 
 Thresholds below are **interview-grade strict** (Phase 3) and **test-enforced**
 (Phase 5) per the owner's decision 2026-05-16.
@@ -82,6 +85,7 @@ Thresholds below are **interview-grade strict** (Phase 3) and **test-enforced**
 - HUMAN-GATE: operator `cdk bootstrap`+`deploy` to `083340857999/us-east-1`; KB-stack cfn-guard resolved/justified pre-deploy; post-deploy upload a sample PDF → ingestion job `COMPLETE` → `crewai run` → `output/2-report.md` ends with a non-empty `## Sources` block. Phase → `complete` only after this.
 
 ### Phase 2 — Config & secrets hardening
+- GATE: panel PASS required — mutation kill-rate ≥ `review-gate.config.json` `mutation_floor`; coverage ≥ `coverage_floor`; codex adversarial no BLOCKER/MAJOR; security-auditor + code-reviewer no BLOCKER/MAJOR; all CHECK: items below green (regression leg). The plan is adversarially reviewed (codex + code-reviewer-verify) and revised before any build; test-engineer reviews case coverage as an advisory, non-blocking leg.
 - CHECK: `pytest tests/test_startup.py -q` passes — startup raises a clear error on missing **or** `replace-with-` placeholder for every required var (TOPIC, MODEL, and the agent-id resolution path), not just TOPIC.
 - CHECK: a test asserts crew verbosity follows an env flag and defaults **off**.
 - CHECK: `.env.example` parity test — every `os.environ` key read under `src/` appears in `.env.example`.
@@ -89,6 +93,7 @@ Thresholds below are **interview-grade strict** (Phase 3) and **test-enforced**
 - CHECK: full prior suite (`pytest infra/tests tests`) still green.
 
 ### Phase 3 — RAG evaluation harness (interview-grade strict)
+- GATE: panel PASS required — same panel as Phase 2, PLUS the gold-set provenance rule: `tests/evals/gold/PROVENANCE.md` declares an `owner` or `codex` author and the gold set is unmodified by the judged diff (ralph may not author its own ground truth).
 - CHECK: gold set committed at `tests/evals/gold/` — ≥ 30 positive items across the in-scope regulations (each: question + ≥1 expected source-passage locator) **and** ≥ 8 out-of-corpus negative questions.
 - CHECK: `pytest tests/evals -m gate` exits 0 **deterministically offline** (recorded retrieval/generation fixtures, no live Bedrock spend); same suite runnable `-m live` (opt-in).
 - CHECK (retrieval, mean over gold set): context-recall ≥ 0.90, context-precision ≥ 0.80, MRR ≥ 0.80.
@@ -98,6 +103,7 @@ Thresholds below are **interview-grade strict** (Phase 3) and **test-enforced**
 - CHECK: `docs/evals.md` documents metrics, thresholds, judge model, run instructions (untracked is fine; file must exist).
 
 ### Phase 4 — AgentCore Runtime IaC
+- GATE: panel PASS required — same panel as Phase 2 (mutation+coverage / codex / security / code / CHECK-regression), evaluated on this phase's frozen diff before `complete`.
 - CHECK: `cd infra && npx aws-cdk@latest synth --all -q` exits 0 with the runtime stack; `pytest infra/tests` asserts the AgentCore Runtime resource is present **or** (if AgentCore IaC is verified immature against current AWS docs) the documented ECS Fargate fallback: run-to-completion task, arm64, no NAT, S3-versioned report output.
 - CHECK: AgentCore-vs-Fargate decision + the current-docs verification recorded in `infra/README.md` with a Reasoning-Gate justification.
 - CHECK: cfn-lint 0 errors; cfn-guard compliant or justified; no IAM `Resource:"*"`.
@@ -105,6 +111,7 @@ Thresholds below are **interview-grade strict** (Phase 3) and **test-enforced**
 - HUMAN-GATE: operator deploy of the runtime stack (billable) — excluded from `/goal`.
 
 ### Phase 5 — Observability + SLOs (test-enforced)
+- GATE: panel PASS required — same panel as Phase 2 (mutation+coverage / codex / security / code / CHECK-regression), evaluated on this phase's frozen diff before `complete`.
 - CHECK: `docs/SLOs.md` exists with **numeric** targets: per-stage + end-to-end latency p50/p95, quality (reuses Phase 3 faithfulness/citation bars), run-success-rate availability, and an explicit 30-day error budget per SLO.
 - CHECK: `pytest tests/test_tracing.py -q` passes — a captured run (recorded fixture; opt-in live) emits exactly 3 stage spans (researcher / writer / designer), **each with non-empty input, output, and tool-call list** (this is the owner's "monitor input and output at each agent level", made binary).
 - CHECK: `pytest infra/tests` asserts Bedrock model-invocation logging resource present, a CloudWatch dashboard present, and **alarm count == count of SLOs in `SLOs.md`** with **each alarm threshold == the matching `SLOs.md` number** (test parses both and cross-checks).
@@ -112,6 +119,7 @@ Thresholds below are **interview-grade strict** (Phase 3) and **test-enforced**
 - CHECK: cfn-lint 0 errors; cfn-guard compliant or justified; prior suites green.
 
 ### Phase 6 — Evidence-backed prod-readiness analysis
+- GATE: panel PASS required — same panel as Phase 2 (mutation+coverage / codex / security / code / CHECK-regression), evaluated on this phase's frozen diff before `complete`.
 - CHECK: `docs/analysis/2026-05-16-compliance-prod-readiness.md` exists; a grep script asserts: all 7 WA pillars present, each with ≥1 six-field Reasoning-Gate finding **or** an explicit "checked, not a gap because X"; every gap has all six fields; no `TBD`/placeholder; every `R-*`/`GAP-*` id cross-references resolve (same integrity checks as the spine plan).
 - CHECK: `analyze_cdk_project` + cfn-guard receipts saved under `docs/analysis/_evidence/`.
 - HUMAN-GATE: none (analysis only; produced against the synthesized templates, no deploy required).
