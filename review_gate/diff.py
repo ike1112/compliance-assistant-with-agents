@@ -25,13 +25,19 @@ def pin_base_sha(repo: Path) -> str:
 
 
 def changed_files(repo: Path, base_sha: str) -> list[str]:
-    """Committed changes since base_sha PLUS untracked files (codex treats
-    untracked as reviewable work, so the integrity check must too)."""
+    """Every path that differs from base_sha by ANY means: committed since
+    base, staged, unstaged-tracked, or untracked. The unstaged/staged legs
+    are load-bearing for the anti-gaming guarantee — without them a builder
+    could edit a tracked protected file (the bar, a frozen fixture) in the
+    working tree, leave it uncommitted, and the integrity check would miss
+    it. codex treats untracked files as reviewable work, so we do too."""
     repo = Path(repo)
     committed = _git(repo, "diff", "--name-only", f"{base_sha}..HEAD")
+    unstaged = _git(repo, "diff", "--name-only")
+    staged = _git(repo, "diff", "--name-only", "--cached")
     untracked = _git(repo, "ls-files", "--others", "--exclude-standard")
     out: list[str] = []
-    for blob in (committed, untracked):
+    for blob in (committed, unstaged, staged, untracked):
         out.extend(line.strip() for line in blob.splitlines() if line.strip())
     return sorted(set(out))
 

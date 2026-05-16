@@ -56,3 +56,19 @@ def test_integrity_clean_when_protected_untouched(repo):
     _git(repo, "add", "feature.py")
     _git(repo, "commit", "-q", "-m", "feature only")
     assert diff.integrity_violations(repo, base, ["guarded.json"]) == []
+
+
+def test_integrity_flags_uncommitted_tracked_tamper(repo):
+    # The bypass the final review caught: a tracked protected file edited
+    # in the working tree but NOT committed must still be flagged.
+    (repo / "guarded.json").write_text("{}", encoding="utf-8")
+    _git(repo, "add", "guarded.json")
+    _git(repo, "commit", "-q", "-m", "add bar")
+    base = diff.pin_base_sha(repo)
+    # builder lowers the bar in the working tree, leaves it uncommitted
+    (repo / "guarded.json").write_text('{"mutation_floor": 0.0}',
+                                       encoding="utf-8")
+    assert diff.integrity_violations(repo, base, ["guarded.json"]) == ["guarded.json"]
+    # also catches it once staged but still uncommitted
+    _git(repo, "add", "guarded.json")
+    assert diff.integrity_violations(repo, base, ["guarded.json"]) == ["guarded.json"]

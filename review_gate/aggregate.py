@@ -59,10 +59,11 @@ def aggregate(verdicts: list[Verdict]) -> GateOutcome:
 
 
 def write_outcome_token(path: Path, base_sha: str, phase: str,
-                        outcome: GateOutcome) -> None:
+                        outcome: GateOutcome, round_: int = 1) -> None:
     Path(path).write_text(json.dumps({
         "base_sha": base_sha,
         "phase": phase,
+        "round": round_,
         "passed": outcome.passed,
         "ts": datetime.now(timezone.utc).isoformat(),
     }, indent=2), encoding="utf-8")

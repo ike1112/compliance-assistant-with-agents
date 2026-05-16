@@ -65,6 +65,11 @@ def run_mutation(repo: Path, paths: list[str], runner: str) -> MutationResult:
             raise FileNotFoundError(
                 f"declared pure-logic path missing, cannot gate: {p}"
             )
+    # Drop any stale cache so a crashed `mutmut run` cannot let `mutmut
+    # results` report a prior run's (possibly passing) numbers.
+    cache = repo / ".mutmut-cache"
+    if cache.exists():
+        cache.unlink()
     subprocess.run(
         ["mutmut", "run", "--paths-to-mutate", ",".join(paths),
          "--runner", runner],

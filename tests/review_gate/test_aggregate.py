@@ -78,10 +78,11 @@ def test_test_engineer_is_advisory_never_blocks():
 
 def test_outcome_token_is_bound_to_base_sha(tmp_path):
     tok = tmp_path / "tok.json"
-    write_outcome_token(tok, base_sha="deadbeef", phase="3",
+    write_outcome_token(tok, base_sha="deadbeef", phase="3", round_=2,
                          outcome=aggregate(_all_clean()))
     data = json.loads(tok.read_text(encoding="utf-8"))
     assert data["base_sha"] == "deadbeef"
     assert data["phase"] == "3"
+    assert data["round"] == 2
     assert data["passed"] is True
     assert "ts" in data

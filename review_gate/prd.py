@@ -38,11 +38,15 @@ def flip_phase_complete(prd_path: Path, phase: str, evidence: dict) -> None:
     line = f"- {date.today().isoformat()} — phase {phase} -> complete via " \
            f"quality gate ({ev})."
 
-    marker = "## Progress Log"
-    idx = text.index(marker)
-    nl = text.index("\n", idx) + 1
-    # insert right after the heading line + its blank line, before existing log
-    insert_at = text.index("\n", nl) + 1 if text[nl:nl + 1] == "\n" else nl
+    # Anchor on the real heading LINE (not any prose mention of the words)
+    # and insert right after it, tolerating an optional following blank line.
+    hm = re.search(r"^##\s+Progress Log[^\n]*$", text, re.MULTILINE)
+    if hm is None:
+        raise PrdError("no '## Progress Log' heading in PRD")
+    after_heading = text.index("\n", hm.end()) + 1
+    insert_at = (text.index("\n", after_heading) + 1
+                 if text[after_heading:after_heading + 1] == "\n"
+                 else after_heading)
     text = text[:insert_at] + line + "\n" + text[insert_at:]
 
     prd_path.write_text(text, encoding="utf-8")

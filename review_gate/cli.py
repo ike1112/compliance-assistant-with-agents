@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 from review_gate import diff
-from review_gate.aggregate import aggregate, write_outcome_token
+from review_gate.aggregate import Verdict, aggregate, write_outcome_token
 from review_gate.config import GateConfigError, load_config
 from review_gate.mutation import meets_floor, run_mutation
 from review_gate.prd import PrdError, flip_phase_complete
@@ -44,18 +44,27 @@ def _cmd_init(repo: Path, phase: str) -> int:
     return OK
 
 
-def _cmd_integrity(repo: Path, phase: str) -> int:
-    cfg_p, state_p, _, _ = _paths(repo)
-    st = load_state(state_p)
-    if st is None:
-        print("no gate state; run init first", file=sys.stderr)
-        return USAGE
+def _integrity_hits(repo: Path, phase: str, base_sha: str) -> list[str]:
+    """Protected paths (the bar file + this phase's frozen fixtures) that
+    were touched anywhere in the judged window. Shared by `integrity` and
+    re-asserted at token-mint time so the deterministic core — not the
+    skill's step ordering — enforces the anti-gaming invariant."""
+    cfg_p, _, _, _ = _paths(repo)
     cfg = load_config(cfg_p)
     protected = [CONFIG_REL]
     pc = cfg.phases.get(phase)
     if pc:
         protected += pc.frozen_fixture_paths
-    hits = diff.integrity_violations(repo, st.base_sha, protected)
+    return diff.integrity_violations(repo, base_sha, protected)
+
+
+def _cmd_integrity(repo: Path, phase: str) -> int:
+    _, state_p, _, _ = _paths(repo)
+    st = load_state(state_p)
+    if st is None:
+        print("no gate state; run init first", file=sys.stderr)
+        return USAGE
+    hits = _integrity_hits(repo, phase, st.base_sha)
     if hits:
         print(f"integrity violation: {hits}", file=sys.stderr)
         return GATE_FAIL
@@ -101,12 +110,27 @@ def _cmd_aggregate(repo: Path, phase: str, verdicts_path: str) -> int:
     if st is None:
         print("no gate state; run init first", file=sys.stderr)
         return USAGE
-    from review_gate.aggregate import Verdict
     raw = json.loads(Path(verdicts_path).read_text(encoding="utf-8"))
     verdicts = [Verdict(**v) for v in raw]
     outcome = aggregate(verdicts)
+
+    # Re-assert the deterministic guards here so a minted PASS token can
+    # never outlive a bar/fixture/gold-set tamper, regardless of whether
+    # the skill called `integrity`/`provenance` first or was interrupted.
+    hits = _integrity_hits(repo, phase, st.base_sha)
+    if hits:
+        outcome.passed = False
+        if "integrity" not in outcome.blocking:
+            outcome.blocking = sorted({*outcome.blocking, "integrity"})
+    if phase == "3":
+        prov = verify_gold_provenance(repo, st.base_sha)
+        if not prov.ok:
+            outcome.passed = False
+            if "provenance" not in outcome.blocking:
+                outcome.blocking = sorted({*outcome.blocking, "provenance"})
+
     write_outcome_token(token_p, base_sha=st.base_sha, phase=phase,
-                        outcome=outcome)
+                        round_=st.round, outcome=outcome)
     st.status = "reviewing"
     save_state(state_p, st)
     if not outcome.passed:
@@ -125,12 +149,19 @@ def _cmd_complete(repo: Path, phase: str) -> int:
     if not Path(token_p).is_file():
         print("refusing: no independent PASS token", file=sys.stderr)
         return USAGE
+    if st.status != "reviewing":
+        # complete may only consume the token minted by the most recent
+        # aggregate; any other state means no fresh independent verdict.
+        print(f"refusing: state is {st.status!r}, expected 'reviewing' "
+              f"(run aggregate)", file=sys.stderr)
+        return USAGE
     tok = json.loads(Path(token_p).read_text(encoding="utf-8"))
     if not (tok.get("passed") is True
             and tok.get("base_sha") == st.base_sha
-            and tok.get("phase") == phase):
-        print("refusing: PASS token does not match this judged base SHA",
-              file=sys.stderr)
+            and tok.get("phase") == phase
+            and tok.get("round") == st.round):
+        print("refusing: PASS token does not match this judged base SHA "
+              "and round", file=sys.stderr)
         return USAGE
     try:
         flip_phase_complete(prd_p, phase=phase, evidence=tok)
