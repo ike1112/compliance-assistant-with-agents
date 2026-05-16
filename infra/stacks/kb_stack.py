@@ -13,12 +13,12 @@ scale-to-zero idle cost, so we build the cluster directly to control
 capacity and bootstrap pgvector over the RDS Data API (no Docker, no
 driver, no in-VPC Lambda).
 """
-from typing import Optional
-
 import aws_cdk as cdk
 from aws_cdk import (
     Duration,
+    aws_bedrock as bedrock,
     aws_ec2 as ec2,
+    aws_iam as iam,
     aws_kms as kms,
     aws_lambda as lambda_,
     aws_rds as rds,
@@ -215,9 +215,92 @@ class ComplianceKbStack(cdk.Stack):
         # secret read on the generated secret — no wildcard policy.
         self.db_cluster.grant_data_api_access(bootstrap)
 
-        # Filled in once the Knowledge Base exists. The agent stack
-        # takes this by reference; None here keeps synth working while
-        # the stack is still being built up.
-        self.knowledge_base: Optional[Construct] = None
+        # The embedding model the Knowledge Base uses. Comes from CDK
+        # context so the RAG-eval sub-project can change it without a
+        # code edit (spec section 3.1). Titan v2 -> 1024 dims, which
+        # must match the vector() column above.
+        embedding_model = self.node.try_get_context("embeddingModel") or (
+            "amazon.titan-embed-text-v2:0"
+        )
+        embedding_model_arn = (
+            f"arn:aws:bedrock:{self.region}::foundation-model/"
+            f"{embedding_model}"
+        )
+
+        # Service role the Bedrock Knowledge Base assumes. Scoped to
+        # exactly what RDS-backed ingestion/query needs: invoke the
+        # embedding model, talk to this cluster over the Data API,
+        # read its secret, and read the (KMS-encrypted) corpus. The
+        # SourceAccount condition blocks the confused-deputy case.
+        self.kb_role = iam.Role(
+            self,
+            "KbRole",
+            assumed_by=iam.ServicePrincipal(
+                "bedrock.amazonaws.com",
+                conditions={
+                    "StringEquals": {"aws:SourceAccount": self.account}
+                },
+            ),
+            description="Bedrock Knowledge Base service role",
+        )
+        self.kb_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["bedrock:InvokeModel"],
+                resources=[embedding_model_arn],
+            )
+        )
+        self.kb_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "rds-data:ExecuteStatement",
+                    "rds-data:BatchExecuteStatement",
+                ],
+                resources=[self.db_cluster.cluster_arn],
+            )
+        )
+        self.db_secret.grant_read(self.kb_role)
+        self.corpus_bucket.grant_read(self.kb_role)
+        self.corpus_key.grant_decrypt(self.kb_role)
+
+        # R-KB. The Knowledge Base itself, backed by the Aurora
+        # pgvector store. Raw L1 (the gen-ai-cdk-constructs equivalent
+        # needs Docker at synth, see module docstring). field_mapping
+        # mirrors the columns the bootstrap DDL created.
+        self.knowledge_base = bedrock.CfnKnowledgeBase(
+            self,
+            "KnowledgeBase",
+            name="compliance-knowledge-base",
+            role_arn=self.kb_role.role_arn,
+            knowledge_base_configuration=bedrock.CfnKnowledgeBase.KnowledgeBaseConfigurationProperty(
+                type="VECTOR",
+                vector_knowledge_base_configuration=bedrock.CfnKnowledgeBase.VectorKnowledgeBaseConfigurationProperty(
+                    embedding_model_arn=embedding_model_arn
+                ),
+            ),
+            storage_configuration=bedrock.CfnKnowledgeBase.StorageConfigurationProperty(
+                type="RDS",
+                rds_configuration=bedrock.CfnKnowledgeBase.RdsConfigurationProperty(
+                    resource_arn=self.db_cluster.cluster_arn,
+                    credentials_secret_arn=self.db_secret.secret_arn,
+                    database_name=PGVECTOR_DB,
+                    table_name=f"{PGVECTOR_SCHEMA}.{PGVECTOR_TABLE}",
+                    field_mapping=bedrock.CfnKnowledgeBase.RdsFieldMappingProperty(
+                        primary_key_field=PGVECTOR_PK,
+                        vector_field=PGVECTOR_VECTOR_FIELD,
+                        text_field=PGVECTOR_TEXT_FIELD,
+                        metadata_field=PGVECTOR_METADATA_FIELD,
+                    ),
+                ),
+            ),
+        )
+        # The table must exist before the KB validates its store, and
+        # the cluster before that. Order both explicitly.
+        self.knowledge_base.node.add_dependency(self.db_cluster)
+        self.knowledge_base.node.add_dependency(bootstrap)
 
         cdk.CfnOutput(self, "CorpusBucketName", value=self.corpus_bucket.bucket_name)
+        cdk.CfnOutput(
+            self,
+            "KnowledgeBaseId",
+            value=self.knowledge_base.attr_knowledge_base_id,
+        )

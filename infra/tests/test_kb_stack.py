@@ -93,6 +93,29 @@ def test_aurora_storage_encrypted():
     )
 
 
+def test_knowledge_base_is_rds_backed():
+    t = _template()
+    t.resource_count_is("AWS::Bedrock::KnowledgeBase", 1)
+    t.has_resource_properties(
+        "AWS::Bedrock::KnowledgeBase",
+        {
+            "StorageConfiguration": Match.object_like({"Type": "RDS"}),
+            "KnowledgeBaseConfiguration": Match.object_like(
+                {"Type": "VECTOR"}
+            ),
+        },
+    )
+
+
+def test_kb_role_has_no_wildcard_resources():
+    # Every KB-role policy statement must name a concrete resource —
+    # a Resource:"*" here is the top cfn-guard finding.
+    t = _template()
+    for pol in t.find_resources("AWS::IAM::Policy").values():
+        for stmt in pol["Properties"]["PolicyDocument"]["Statement"]:
+            assert stmt.get("Resource") != "*", "wildcard resource in IAM policy"
+
+
 def test_buckets_enforce_tls():
     # enforce_ssl adds a deny-non-TLS bucket policy; every bucket
     # must have one.
