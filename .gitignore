@@ -11,3 +11,6 @@ docs/
 infra/cdk.out/
 .cdk.staging/
 infra/cdk.context.json
+.claude/review-gate.state.json
+.claude/review-gate.last-outcome.json
+.mutmut-cache
