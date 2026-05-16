@@ -26,7 +26,12 @@ env = cdk.Environment(
     region=os.environ.get("CDK_DEFAULT_REGION", "us-east-1"),
 )
 
-kb_stack = ComplianceKbStack(app, "ComplianceKbStack", env=env)
+# Termination protection on the data-bearing stack: it holds the
+# corpus, the vector store, and the Knowledge Base, none of which
+# should be deletable by an accidental `cdk destroy`.
+kb_stack = ComplianceKbStack(
+    app, "ComplianceKbStack", env=env, termination_protection=True
+)
 
 ComplianceAgentStack(
     app,
