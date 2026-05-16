@@ -1,0 +1,18 @@
+{
+  "mutation_floor": 0.80,
+  "coverage_floor": 0.90,
+  "phases": {
+    "2": {
+      "pure_logic_paths": ["src/compliance_assistant/agent_ids.py"],
+      "frozen_fixture_paths": []
+    },
+    "3": {
+      "pure_logic_paths": ["src/compliance_assistant/citations.py"],
+      "frozen_fixture_paths": ["tests/evals/gold/", "tests/evals/gold/PROVENANCE.md"]
+    },
+    "5": {
+      "pure_logic_paths": ["src/compliance_assistant/citations.py"],
+      "frozen_fixture_paths": []
+    }
+  }
+}
