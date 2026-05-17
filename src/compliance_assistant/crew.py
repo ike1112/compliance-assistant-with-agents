@@ -123,6 +123,14 @@ class ComplianceAssistant():
 	def crew(self) -> Crew:
 		"""Creates the Compliance Automation crew"""
 
+		# Observability: a passive tracer captures per-agent input /
+		# output / tool-calls via the step/task callbacks. Imported
+		# lazily so importing this module stays side-effect free, and
+		# attaching it never changes the run's output (same contract as
+		# CREW_VERBOSE).
+		from compliance_assistant.tracing import build_tracer
+		_tracer = build_tracer()
+
 		return Crew(
 			# self.agents and self.tasks are filled in automatically by
 			# @CrewBase: it collects every @agent and @task method above,
@@ -133,4 +141,6 @@ class ComplianceAssistant():
 			# is truthy; quiet by default. Output is unchanged either way.
 			verbose=_VERBOSE,
 			max_rpm=10,
+			step_callback=_tracer.on_step,
+			task_callback=_tracer.on_task,
 		)

@@ -77,6 +77,40 @@ it keeps the runtime closure to the crew's own deps and makes the
 service contract fully unit-testable offline (`test_runtime_server.py`),
 matching this repo's dependency-light, deterministic ethos.
 
+## Model-invocation logging decision (current-docs verified, 2026-05)
+
+**Decision:** configure Amazon Bedrock model-invocation logging via a
+CDK `AwsCustomResource` calling `PutModelInvocationLoggingConfiguration`
+(delete on stack delete), with **raw content delivery disabled**.
+
+**Current-docs verification** (AWS docs, May 2026): Bedrock
+model-invocation logging has **no native CloudFormation resource** —
+AWS's own prescriptive-guidance pattern provisions a Lambda/custom
+resource calling the account-level `PutModelInvocationLoggingConfiguration`
+API. CDK's `custom_resources.AwsCustomResource`
+(`install_latest_aws_sdk=False`) is the asset-free, offline-deterministic
+way to do this; `AwsCustomResourcePolicy.from_statements` avoids the
+construct's default `Resource:"*"`.
+
+**PAN-safety by construction:** the logging config sets
+`textDataDeliveryEnabled` / `imageDataDeliveryEnabled` /
+`embeddingDataDeliveryEnabled` / `videoDataDeliveryEnabled` = `false`,
+so raw prompts/responses are **never** delivered to CloudWatch — only
+invocation metadata. The redaction CHECK is therefore satisfied on the
+Bedrock path by construction and on the in-process trace path by
+`compliance_assistant.tracing.redact` (Luhn-validated PAN + email).
+`infra/tests/test_observability_stack.py` asserts the four
+data-delivery flags are `false` in the custom resource's Create
+payload.
+
+**SLOs are the single source of truth.** The stack derives exactly one
+alarm per row of `docs/SLOs.md`, bound to that row's real metric; the
+test re-parses the same file and cross-checks namespace/metric/
+statistic/period/eval/comparator/threshold, so alarms cannot drift from
+the document or watch the wrong metric. (`docs/` is otherwise
+gitignored; `docs/SLOs.md` is force-tracked because it is a
+reproducible build input — see `.gitignore`.)
+
 ## Toolchain
 
 CDK CLI must be **≥ 2.1122.0** (`aws-cdk@latest`); the older
@@ -158,6 +192,29 @@ npx --yes aws-cdk@latest synth --all -q
   `Resource:"*"`) are intentionally deferred to the observability phase,
   so no other identity wildcard exists in this stack. The operator's
   pre-deploy cfn-guard run checks the same controls enumerated above.
+- **`ComplianceObservabilityStack` full cfn-guard runs at operator
+  pre-deploy** (same in-loop streaming limitation). *Reasoning-Gate
+  justification:* in-loop the stack is covered by cfn-lint (0 errors,
+  region-scoped `-r us-east-1`) plus targeted synth assertions in
+  `tests/test_observability_stack.py` — one alarm per SLO semantically
+  bound to its metric, the model-invocation-logging custom resource
+  present with **all four raw-content delivery flags `false`**, the
+  log group retained, and the IAM accounting below. Two accepted
+  exceptions, both isolated and test-asserted:
+  - `bedrock:PutModelInvocationLoggingConfiguration` /
+    `DeleteModelInvocationLoggingConfiguration` with `Resource:"*"` —
+    account-level Bedrock logging-config operations with **no
+    resource-level form** in IAM (the same class as the
+    `ecr:GetAuthorizationToken` exception above). It is the *only*
+    literal `Resource:"*"` among the stack's own inline statements;
+    the test asserts exactly that.
+  - the AWS-managed `AWSLambdaBasicExecutionRole` attached by the CDK
+    `AwsCustomResource` **provider framework** to its singleton Lambda
+    role — a logs-only, well-understood CDK pattern, not a
+    hand-authored grant. The test asserts it is the *only* managed
+    policy anywhere in the stack, so no broad managed policy can slip
+    in unnoticed.
+  The operator's pre-deploy cfn-guard run checks the same controls.
 
 ### Cost snapshot
 

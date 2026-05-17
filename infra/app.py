@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """CDK entry point for the compliance-assistant Bedrock knowledge layer.
 
-Four stacks, split by blast radius. The knowledge-base stack holds the
+Five stacks, split by blast radius. The knowledge-base stack holds the
 data-bearing, slow-to-recreate resources (corpus bucket, vector store,
 the Knowledge Base itself) and uses RETAIN so a stack delete never
 destroys regulatory evidence. The agent stack holds the cheap,
@@ -13,7 +13,10 @@ hosts the crew on AgentCore Runtime + its versioned report bucket. The
 agent stack reads the Knowledge Base from the kb stack by reference, so
 the KB is defined exactly once; the runtime stack is ordered after both
 the ECR stack (its image must be pushable first) and the agent stack
-(the crew resolves the agent ids from SSM at container start).
+(the crew resolves the agent ids from SSM at container start). The
+observability stack (Bedrock model-invocation logging, dashboard, SLO
+alarms) is standalone — it depends on no other stack and is not part
+of any bulk runtime deploy.
 """
 import os
 
@@ -23,6 +26,7 @@ from stacks.kb_stack import ComplianceKbStack
 from stacks.agent_stack import ComplianceAgentStack
 from stacks.runtime_ecr_stack import ComplianceRuntimeEcrStack
 from stacks.runtime_stack import ComplianceRuntimeStack
+from stacks.observability_stack import ComplianceObservabilityStack
 
 app = cdk.App()
 
@@ -69,5 +73,10 @@ runtime_stack = ComplianceRuntimeStack(
 )
 runtime_stack.add_dependency(runtime_ecr_stack)
 runtime_stack.add_dependency(agent_stack)
+
+# Observability is standalone: model-invocation logging + dashboard +
+# one alarm per SLO derived from docs/SLOs.md. No cross-stack ref, no
+# bulk-deploy coupling.
+ComplianceObservabilityStack(app, "ComplianceObservabilityStack", env=env)
 
 app.synth()

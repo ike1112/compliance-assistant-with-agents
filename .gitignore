@@ -4,7 +4,11 @@ __pycache__/
 .DS_Store
 output/
 analysis/
-docs/
+docs/*
+# docs/ is human-only scratch EXCEPT the SLO contract, which the
+# observability stack synthesizes alarms from and the infra test
+# cross-checks — it must be a tracked, reproducible build input.
+!docs/SLOs.md
 .env
 .env.*
 !.env.example
