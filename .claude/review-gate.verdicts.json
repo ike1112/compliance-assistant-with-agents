@@ -1,38 +1,38 @@
 [
   {
     "name": "codex",
-    "passed": false,
-    "severity": "MAJOR",
-    "summary": "Round 3 REVISE. F-004 (ECR bootstrap cycle) fully RESOLVED: 4 stacks synth, runtime imports the deterministic ECR repo + depends on ECR & agent, IAM scoped with only the ecr token wildcard, runbook excludes runtime from bulk deploy. One residual MAJOR: B2 not fully resolved - .claude/PRPs/plans/phase-agentcore-runtime-iac.plan.md:476 still contains 'Tasks 1-9 done in order' (task-position label). Commit subjects clean."
+    "passed": true,
+    "severity": null,
+    "summary": "Focused re-gate APPROVE, 0 findings. B2 fully closed (plan zero task-position labels; only allowed real phase identities/count/headings remain). Corrective commit 6346a02 touches only the plan checklist reword + .gitignore coverage entries + infra/.coverage removal + gate records; no src/tests-evals/review_gate/config change in 95efaf9..HEAD. Previously-resolved F-001/F-002/F-004 verified intact and unaffected. pytest infra/tests 42 passed."
   },
   {
     "name": "test_integrity",
     "passed": true,
     "severity": null,
-    "summary": "mutation: phase owner-exempt (rationale printed, exit 0). coverage: changed-line 96% >= 0.90 (diff-cover vs base 95efaf9). LEG B PASS."
+    "summary": "mutation: phase owner-exempt (rationale printed, exit 0). coverage: changed-line 96% >= 0.90 (diff-cover vs base 95efaf9, exit 0) after the corrective. LEG B PASS."
   },
   {
     "name": "security",
     "passed": true,
     "severity": null,
-    "summary": "agent-skills:security-auditor PASS severity null. No security regression from the round-3 ECR split: ECR stack IMMUTABLE+scan+RETAIN+deterministic-name; runtime ECR-pull scoped to imported repo ARN; sole identity Resource:* still ecr:GetAuthorizationToken; least-priv s3:PutObject/KMS intact (source+template); confused-deputy conditions; bucket hardening; /status non-leaking. No findings."
+    "summary": "agent-skills:security-auditor PASS severity null (round-3, carried forward). The owner-authorized corrective (6346a02) is plan-reword + .gitignore + .coverage-untrack only \u2014 zero code/IaC/security-surface change (HEAD diff scope independently confirmed by codex + code-reviewer), so the round-3 security verdict (no regression from the ECR split; least-priv IAM, sole ecr token wildcard, bucket hardening, /status non-leaking) stands unchanged."
   },
   {
     "name": "code",
-    "passed": false,
-    "severity": "MAJOR",
-    "summary": "agent-skills:code-reviewer REQUEST CHANGES. codex F-004 RESOLVED soundly (clean ECR-stack split, ctor threaded through all call sites, ordered runbook, real new tests, 42/42, 4-stack synth). Round-2 Task-N finding NOT fully resolved: 1 residual durable-artefact instance at plan:476 'Tasks 1-9 done in order' (also a dangling ref - the numbered steps were renamed). Same blocking jargon class, incompletely swept. No new blocking issue from round-3 itself."
+    "passed": true,
+    "severity": null,
+    "summary": "agent-skills:code-reviewer focused re-gate APPROVE, passed=true, severity null. Round-2/3 B2 task-label finding FULLY RESOLVED (plan:476 reworded to a non-ordinal phrase; rg jargon scan clean across plan + window + subjects). infra/.coverage untracked + gitignored. HEAD diff is docs/gitignore/records only \u2014 F-001/F-002/F-004 untouched and intact. No new BLOCKER/MAJOR/MINOR."
   },
   {
     "name": "regression",
     "passed": true,
     "severity": null,
-    "summary": "Phase PRD CHECK verbatim all green on 95efaf9..HEAD: cdk synth --all -q exit 0 (4 stacks incl ComplianceRuntimeEcrStack + ComplianceRuntimeStack); pytest infra/tests 42 passed; cfn-lint -r us-east-1 0 errors on runtime + ecr templates; README RAG-eval-gate pre-deploy + ordered no-bulk-deploy present; no IAM Resource:* beyond justified (test-enforced). No src/ or tests/evals change. (Hygiene, non-CHECK: infra/.coverage was accidentally tracked.)"
+    "summary": "Phase PRD CHECK verbatim all green on 95efaf9..HEAD after the corrective: cdk synth --all -q exit 0 (4 stacks: KB, Agent, ComplianceRuntimeEcrStack, ComplianceRuntimeStack); pytest infra/tests 42 passed; cfn-lint -r us-east-1 0 errors on runtime + ecr templates; README RAG-eval-gate pre-deploy + ordered no-bulk-runtime-deploy present; no IAM Resource:* beyond the justified ecr token (test-enforced). No src/ or tests/evals change; infra/.coverage no longer tracked."
   },
   {
     "name": "test_engineer",
     "passed": true,
     "severity": "MINOR",
-    "summary": "ADVISORY (non-blocking) PASS. Round-2 advisory items addressed (POST-unknown 404; completed->new-run). Round-3 tests genuine/mutation-resistant (ECR-stack blast-radius split, no-pre-start-race fake-thread guard, cross-stack-repo fixture strengthens sole-wildcard test). No test-quality regression. 2 non-blocking hygiene flags: infra/.coverage committed as a tracked binary (untrack + gitignore); test_handler_routes_over_a_real_socket can flake under --cov (coverage/ThreadingHTTPServer interaction) though it passed in the authoritative LEG B run."
+    "summary": "ADVISORY (non-blocking) PASS (round-3, carried forward). Tests genuine/mutation-resistant; round-2 advisory items addressed. The corrective touches no test surface (docs/gitignore/.coverage-untrack only) so the round-3 advisory stands; its 2 hygiene flags are now also resolved (infra/.coverage untracked+gitignored; the socket-test --cov flake did not occur in the authoritative LEG B run, 42 passed)."
   }
 ]
