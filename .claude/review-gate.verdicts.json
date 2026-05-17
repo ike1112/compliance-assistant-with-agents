@@ -2,37 +2,37 @@
   {
     "name": "codex",
     "passed": true,
-    "severity": null,
-    "summary": "Verdict APPROVE, no material findings on the clean product-only frozen diff df22433..HEAD. Re-verified: SSM fail-closed (env fallback only on genuine-unreachable or explicit USE_ENV_AGENT_IDS), agent ids stripped before placeholder validation, startup covers TOPIC/MODEL/agent ids, verbosity env-gated, .env.example has the new keys. No BLOCKER/MAJOR."
+    "severity": "MINOR",
+    "summary": "Round-2 adversarial APPROVE on frozen diff 2dd1853..HEAD. All round-1 F1/F2 BLOCKER + F3-F6 MAJOR verified genuinely remediated (anti-circularity bind to recomputed BM25 top-k; deterministic-groundedness gate with judge corroborating; loud render; bounded requirement match; full report.json parity; offline conftest). 2 MINOR: docs/evals.md selection-rule wording (fixed; docs is untracked/out-of-range), conftest not an OS sandbox (accepted scope, recorded follow-up). No BLOCKER/MAJOR."
   },
   {
     "name": "test_integrity",
     "passed": true,
     "severity": null,
-    "summary": "Mutation: agent_ids.py kill-rate 0.660 >= per-phase floor 0.65 (owner-set; agent_ids.py is defensive SSM/env I/O glue, rationale in config + findings-2-r2.md). Coverage: changed-lines (diff-cover vs base df22433) = 100% over all 36 changed src lines (agent_ids/startup/main/crew) — every added/modified src line measured, no exclusions. Both exit 0."
+    "summary": "Run in ISOLATION (no concurrent suite-executing leg). Mutation: citations.py kill-rate 0.839 >= global mutation_floor 0.80 (exit 0); citations.py restored clean, test_citations 19/19. Coverage: diff-cover vs base over src exit 0 (no changed src lines — the harness is test infra, citations.py unchanged; vacuous-pass, correct). Both exit 0."
   },
   {
     "name": "security",
     "passed": true,
     "severity": "MINOR",
-    "summary": "agent-skills:security-auditor PASS, 0 BLOCKER/0 MAJOR, 2 MINOR. SSM trust boundary correctly fail-closed with no residual fail-open path; whitespace/placeholder bypass closed; import-time AWS side effects eliminated; verbosity defaults OFF. MINOR: boto3.client construction errors fail closed but with a slightly over-claiming message (safe direction); !r echo low-risk for non-secret ids on a local CLI."
+    "summary": "agent-skills:security-auditor PASS, 0 BLOCKER/0 MAJOR, 2 MINOR/2 NIT. All round-1 B1-B4 + M1-M4 verified remediated; anti-circularity genuinely closed; offline+no-subprocess structural and correctly scoped (gold-frozen test unmarked so its git is allowed); fixture size-capped pre-json; no secrets; gold byte-identical/untouched; kb_stack non-FIXED_SIZE guard sound. MINOR: negative-answer residual-trust asymmetry (documented in docs/evals.md), parse_judge bound (defense-in-depth). Non-blocking."
   },
   {
     "name": "code",
-    "passed": true,
-    "severity": "MINOR",
-    "summary": "agent-skills:code-reviewer APPROVE/PASS, 0 BLOCKER/0 MAJOR. Verified: rename+alias byte-identical (mutation-frozen), fail-closed classification sound, whitespace strip correct both directions, validation first statement of all 4 entry points (import side-effect-free), parity contract sound, no scope creep. MINOR: unreachable-type whitelist narrower than prose; raw TOPIC reaches prompt (validated stripped) — both noted, no action needed."
+    "passed": false,
+    "severity": "BLOCKER",
+    "summary": "agent-skills:code-reviewer REVISE. All round-1 code-path fixes (B1 anti-circularity bind, B2 deterministic gate, B3 missing-fixture hard-fail, B4 loud render, M2/M3/M4) verified CORRECT empirically. BLOCKER (B2-docs): the B2 remediation required the residual-trust disclosure to durably exist in a tracked, in-range artefact; docs/evals.md is git-ignored (structurally not version-controlled / not in 2dd1853..HEAD) and tracked tests/evals/judge/judge_rubric.md carries NO residual-trust statement. Plus MINOR: determinism test pins n=2 not the spec's >=10x."
   },
   {
     "name": "regression",
     "passed": true,
     "severity": null,
-    "summary": "PRD Phase 2 CHECK commands verbatim, all green: CHECK1 `pytest tests/test_startup.py -q` 34 passed; CHECK4 uv.lock git-tracked + `uv sync --frozen` exit 0 + uv.lock unchanged; CHECK5 `pytest infra/tests tests` 133 passed. CHECK2 (verbosity env flag default off) and CHECK3 (.env.example parity incl USE_ENV_AGENT_IDS) assertions live in test_startup.py and pass."
+    "summary": "Phase 3 PRD CHECK realized verbatim: `pytest tests/evals -m gate` 15 passed (gold cardinality >=30/>=8; offline+deterministic; retrieval recall/precision/MRR; groundedness/citation/not-found/req-cov bars; chunking decision report.json==recompute, cdk.json==winner). docs/evals.md exists. Baseline: `pytest tests infra/tests` (not gate/live) 189 passed, no regression; nothing under docs/ staged; gold tree clean."
   },
   {
     "name": "test_engineer",
     "passed": true,
     "severity": "MINOR",
-    "summary": "ADVISORY (non-blocking). Suite is strong and mutation-aware; fail-closed boundary genuinely proven with real botocore types + env-ids-present negative case. Advisory follow-ups (not gate-blocking, recorded): parity self-check guard list omits USE_ENV_AGENT_IDS/agent-id keys; no negative test that the parity check can fail; AGENT_ID_SSM_PATH override branch untested. Mutation leg (leg B) is the objective bar, not this opinion."
+    "summary": "ADVISORY (non-blocking). Suite strong and substantially non-tautological; round-1 blockers verified genuinely remediated by direct probing (74 passed/1 skipped). 3 non-blocking follow-ups recorded: winner-is-None end-to-end when both deploy configs forged; advisory-config-can-never-win pin; conftest also block subprocess.call/check_call + os.system/os.popen. Mutation leg is the objective bar, not this opinion."
   }
 ]
