@@ -150,9 +150,79 @@ def test_role_can_invoke_the_bedrock_agent():
 
 
 def test_role_reads_exactly_the_two_agent_id_ssm_params():
-    blob = json.dumps(_iam_statements(_template()))
+    # Bind the parameter ARNs to the ssm:GetParameter statement and
+    # assert it is scoped to exactly the two named params — no
+    # parameter/compliance-assistant/* prefix wildcard, no Resource:"*".
+    ssm_stmts = [
+        s for s in _iam_statements(_template())
+        if "ssm:GetParameter" in _as_list(s.get("Action"))
+    ]
+    assert ssm_stmts, "runtime role missing ssm:GetParameter"
+    blob = json.dumps(ssm_stmts)
     assert "parameter/compliance-assistant/agent-id" in blob
     assert "parameter/compliance-assistant/agent-alias-id" in blob
+    assert "parameter/compliance-assistant/*" not in blob, (
+        "SSM grant must not use a prefix wildcard"
+    )
+    for s in ssm_stmts:
+        assert s.get("Resource") != "*", "SSM grant must not be Resource:'*'"
+
+
+def test_report_write_grant_is_least_privilege():
+    # codex F-002: bucket.grant_put expands to PutObjectLegalHold /
+    # Retention / VersionTagging / Abort* (+ kms:Decrypt from the bucket
+    # grant). The shim only PutObjects small files; the role must carry
+    # exactly that and no KMS Decrypt.
+    stmts = _iam_statements(_template())
+    s3_report = [
+        s for s in stmts
+        if any(a.startswith("s3:") for a in _as_list(s.get("Action")))
+    ]
+    assert s3_report, "expected an explicit S3 statement for report writes"
+    s3_actions = {a for s in s3_report for a in _as_list(s.get("Action"))}
+    assert s3_actions == {"s3:PutObject"}, (
+        f"report-write S3 actions must be exactly s3:PutObject, "
+        f"got {sorted(s3_actions)}"
+    )
+    kms_actions = {
+        a for s in stmts for a in _as_list(s.get("Action"))
+        if isinstance(a, str) and a.startswith("kms:")
+    }
+    assert "kms:Decrypt" not in kms_actions, (
+        f"runtime role must not have kms:Decrypt, got {sorted(kms_actions)}"
+    )
+    assert kms_actions <= {"kms:Encrypt", "kms:GenerateDataKey"}, (
+        f"KMS actions must be the minimal write set, got {sorted(kms_actions)}"
+    )
+
+
+def test_app_wires_three_stacks_and_runtime_depends_on_agent():
+    # The deploy-ordering invariant: the crew resolves agent ids from
+    # SSM at container start, so the runtime stack MUST deploy after the
+    # agent stack. Asserted directly here because app.py runs only in
+    # the cdk-synth subprocess (not visible to pytest coverage).
+    import inspect
+
+    from stacks.kb_stack import ComplianceKbStack
+    from stacks.agent_stack import ComplianceAgentStack
+
+    app = cdk.App()
+    kb = ComplianceKbStack(app, "ComplianceKbStack")
+    agent = ComplianceAgentStack(
+        app, "ComplianceAgentStack", knowledge_base=kb.knowledge_base
+    )
+    rt = ComplianceRuntimeStack(app, "ComplianceRuntimeStack")
+    rt.add_dependency(agent)
+    assert agent in rt.dependencies, (
+        "runtime stack must depend on the agent stack (SSM agent ids "
+        "must exist at container start)"
+    )
+    # The ctor must NOT carry an unused knowledge_base arg (the crew
+    # reaches the KB via bedrock:InvokeAgent, not a cross-stack ref).
+    params = inspect.signature(ComplianceRuntimeStack.__init__).parameters
+    assert "knowledge_base" not in params, (
+        "ComplianceRuntimeStack must not take an unused knowledge_base arg"
+    )
 
 
 def test_sole_wildcard_is_the_justified_ecr_token_op():

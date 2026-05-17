@@ -110,12 +110,14 @@ npx --yes aws-cdk@latest synth --all -q
   the L1 ships in the pinned `aws-cdk-lib`). It is a catalog-lag false
   positive, not a template defect: cfn-lint is therefore run
   **region-scoped to the single deploy region `us-east-1`**
-  (`cfn-lint --region us-east-1`, the region `app.py` and the Phase 1
-  runbook deploy to), where AgentCore Runtime is available and the
-  template lints **0 errors** (only the W3045 access-log warning
-  above, identical to the KB/agent stacks). The unscoped run only
-  flags non-deploy partitions (cn-/gov-/…); scoping is the correct
-  posture for a GA resource newer than the cfn-lint release.
+  (`cfn-lint -r us-east-1 cdk.out/ComplianceRuntimeStack.template.json`
+  — the installed cfn-lint 1.41.0 uses `-r/--regions`; that is the
+  region `app.py` and the Phase 1 runbook deploy to), where AgentCore
+  Runtime is available and the template lints **0 errors** (only the
+  W3045 access-log warning above, identical to the KB/agent stacks).
+  The unscoped run only flags non-deploy partitions (cn-/gov-/…);
+  scoping is the correct posture for a GA resource newer than the
+  cfn-lint release.
 
 ### Accepted cfn-guard exceptions
 

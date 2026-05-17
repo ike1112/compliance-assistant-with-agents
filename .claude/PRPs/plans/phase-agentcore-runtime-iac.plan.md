@@ -443,7 +443,7 @@ Execute in order. Each task is atomic and independently verifiable.
 ```bash
 cd infra && npx aws-cdk@latest synth --all -q                       # CHECK 2 (synth)
 cd .. && PYTHONPATH=src python -m pytest infra/tests -q              # CHECK 2 (assertions)
-cd infra && cfn-lint cdk.out/ComplianceRuntimeStack.template.json    # CHECK 4 (0 errors)
+cd infra && cfn-lint -r us-east-1 cdk.out/ComplianceRuntimeStack.template.json   # CHECK 4 (0 errors; region-scoped — E3006 catalog-lag for the GA resource is documented in README)
 # CHECK 4 cfn-guard: run cfn-guard against the runtime template with the
 # same ruleset Phase 1 uses; pass criterion = COMPLIANT. If the in-loop
 # environment cannot stream it (the documented KB-stack limitation),

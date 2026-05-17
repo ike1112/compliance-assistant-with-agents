@@ -101,9 +101,7 @@ class ComplianceRuntimeStack(cdk.Stack):
             image_tag_mutability=ecr.TagMutability.IMMUTABLE,
             removal_policy=cdk.RemovalPolicy.RETAIN,
         )
-        image_tag = self.node.try_get_context("agentRuntimeImageTag") or (
-            "latest"
-        )
+        image_tag = self.node.try_get_context("agentRuntimeImageTag") or "latest"
 
         # R-RT-ROLE. The role AgentCore Runtime assumes to run the crew.
         # Scoped to exactly what the crew needs. The SourceAccount +
@@ -223,12 +221,28 @@ class ComplianceRuntimeStack(cdk.Stack):
             )
         )
         # Write the crew's report artifacts to the versioned bucket.
-        # CDK grants are resource-scoped to the bucket + key (no
-        # wildcard). Observability (CloudWatch metrics, X-Ray) is
-        # deliberately deferred to the observability phase so no other
-        # Resource:"*" statement is introduced here.
-        self.report_bucket.grant_put(self.runtime_role)
-        self.report_key.grant_encrypt(self.runtime_role)
+        # Explicit least-privilege rather than bucket.grant_put(): the
+        # CDK grant expands to s3:PutObjectLegalHold / PutObjectRetention
+        # / PutObjectVersionTagging / Abort* (+ kms:Decrypt from the
+        # bucket grant) — none of which the shim's upload_file path
+        # uses. The shim only PutObjects small markdown files into an
+        # SSE-KMS bucket, so scope to exactly that. Observability
+        # (CloudWatch metrics, X-Ray) stays deferred to the
+        # observability phase so no other Resource:"*" is introduced.
+        self.runtime_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["s3:PutObject"],
+                resources=[self.report_bucket.arn_for_objects("reports/*")],
+            )
+        )
+        # SSE-KMS object writes need a data key; no Decrypt (the runtime
+        # never reads the reports back).
+        self.runtime_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["kms:GenerateDataKey", "kms:Encrypt"],
+                resources=[self.report_key.key_arn],
+            )
+        )
 
         # R-RT-RUNTIME. The AgentCore Runtime. maxLifetime is
         # context-driven so the run ceiling is a config knob, validated

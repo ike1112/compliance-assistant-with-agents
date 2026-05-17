@@ -99,14 +99,27 @@ def _do_run(run_id: str) -> None:
             _RUN["grounded"] = os.path.exists(_REPORT_ARTIFACT)
             _RUN["state"] = "completed"
     except Exception as exc:  # surfaced via /status and /ping, never hidden
+        # Caller sees a stable class+message category, not repr() (which
+        # can carry ARNs / request ids / boto3 error bodies). The full
+        # detail goes to the container log (CloudWatch) for the operator.
+        print(f"run {run_id} failed: {exc!r}", flush=True)
         with _LOCK:
-            _RUN["error"] = repr(exc)
+            _RUN["error"] = f"{type(exc).__name__}: {exc}"
             _RUN["state"] = "failed"
 
 
+def _running_unlocked() -> bool:
+    """Authoritative busy state: the LOCKED run state, not thread
+    liveness. Thread liveness has a pre-start gap (the thread is not yet
+    alive between state=running and Thread.start()), which would let a
+    second invocation through and report Healthy for an accepted run.
+    Caller must hold _LOCK."""
+    return _RUN["state"] == "running"
+
+
 def _busy() -> bool:
-    t = _RUN["thread"]
-    return t is not None and t.is_alive()
+    with _LOCK:
+        return _running_unlocked()
 
 
 def ping() -> dict:
@@ -128,7 +141,7 @@ def status() -> dict:
 def start_invocation() -> tuple[int, dict]:
     """Start a run if none is in flight. Returns (http_status, body)."""
     with _LOCK:
-        if _busy():
+        if _running_unlocked():
             return 409, {"error": "a run is already in flight",
                          "run_id": _RUN["id"]}
         run_id = str(uuid.uuid4())
@@ -139,7 +152,14 @@ def start_invocation() -> tuple[int, dict]:
             id=run_id, thread=thread, state="running",
             grounded=False, artifacts=[], error=None,
         )
-    thread.start()  # outside the lock; do NOT join (would block /ping)
+        # Start UNDER the lock: state is already "running" and the
+        # thread is launched atomically with it, so there is no
+        # pre-start window where a second invocation slips past the
+        # guard or /ping reports Healthy for an accepted run.
+        # Thread.start() returns immediately; _do_run does not take
+        # _LOCK until its terminal state write and never holds it
+        # during the crew run, so the lock hold here is microseconds.
+        thread.start()
     return 202, {"run_id": run_id, "state": "running"}
 
 
