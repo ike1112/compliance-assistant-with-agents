@@ -61,8 +61,14 @@ def fixture_path(item_id: str, cfg_key: str) -> Path:
     return FIXTURES_DIR / f"{item_id}__{cfg_key}.json"
 
 
+_MAX_FIXTURE_BYTES = 1_000_000
+
+
 def load_fixture(path: Path) -> dict:
-    fx = json.loads(path.read_bytes().decode("utf-8"))
+    raw = path.read_bytes()
+    assert len(raw) <= _MAX_FIXTURE_BYTES, (
+        f"{path.name}: fixture exceeds {_MAX_FIXTURE_BYTES} bytes")
+    fx = json.loads(raw.decode("utf-8"))
     required = _REQUIRED_POS if fx.get("kind") == "positive" else _REQUIRED
     missing = [k for k in required if k not in fx]
     assert not missing, f"{path.name}: missing fixture fields {missing}"

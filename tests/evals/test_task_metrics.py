@@ -34,10 +34,25 @@ def test_covers_requirement_matches_req_or_requirement_spelling():
         "... reviewed every six months. PCI DSS v4.0 Requirement 1.2.7",
         exp) is True
     assert TM.covers_requirement("PCI DSS Req 1.2.7 applies", exp) is True
-    # bare number without PCI/requirement context must NOT match
+    # bare number, not adjacent to Req/Requirement, must NOT match
     assert TM.covers_requirement("the value 1.2.7 appears alone", exp) is False
     # wrong / missing number must NOT match
     assert TM.covers_requirement("PCI DSS Requirement 9.9.9", exp) is False
+
+
+def test_covers_requirement_number_is_bounded_no_superstring_match():
+    exp = "PCI DSS v4.0 Req 1.2.7"
+    # 1.2.7 must NOT be satisfied by 11.2.7 or 1.2.70 (substring bug)
+    assert TM.covers_requirement("see PCI DSS Requirement 11.2.7", exp) is False
+    assert TM.covers_requirement("see PCI DSS Requirement 1.2.70", exp) is False
+
+
+def test_covers_requirement_ignores_sources_block():
+    exp = "PCI DSS v4.0 Req 3.5.1"
+    # The id appears only in the rendered Sources block, not the prose:
+    ans = ("Stored PAN must be unreadable.\n\n## Sources\n\n"
+           "1. `s3://corpus/req-03.txt` — PCI DSS Requirement 3.5.1 ...")
+    assert TM.covers_requirement(ans, exp) is False
 
 
 def test_requirement_coverage_counts_expected_ids():

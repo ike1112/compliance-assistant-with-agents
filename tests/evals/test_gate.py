@@ -1,13 +1,13 @@
 """The Phase-3 quality gate: deterministic, offline, recomputed.
 
-Every metric is recomputed from raw fixtures + the frozen corpus; nothing
-trusts a precomputed score. Offline is enforced (sockets blocked);
-determinism is enforced (recompute twice -> identical). Hash-binding is
-asserted. The bars are the PRD CHECK thresholds, applied to the winning
-deployable config.
+Offline + no-subprocess is enforced for every `gate`-marked test by
+tests/evals/conftest.py. Every metric is recomputed from raw fixtures
+bound to the recomputed deterministic retriever; nothing trusts a stored
+score. The binding generation criterion is deterministic groundedness;
+the recorded judge score is corroborating. Bars are the PRD CHECK
+thresholds, applied to the winning deployable config.
 """
 import json
-import socket
 
 import pytest
 
@@ -18,11 +18,11 @@ from tests.evals.harness.goldset import load_negatives, load_positives
 pytestmark = pytest.mark.gate
 
 
-@pytest.fixture(autouse=True)
-def _no_network(monkeypatch):
-    def _blocked(*a, **k):
-        raise AssertionError("gate attempted network I/O (must be offline)")
-    monkeypatch.setattr(socket, "socket", _blocked)
+def test_offline_guard_is_active():
+    # conftest replaced socket/subprocess for gate tests.
+    import socket
+    with pytest.raises(AssertionError, match="offline"):
+        socket.socket()
 
 
 def test_gold_cardinality_check():
@@ -47,11 +47,25 @@ def test_gate_bars_on_winner_config():
     g = win["generation"]
     assert g is not None, "winner has no committed fixtures"
     assert g["any_forged"] is False, "a fixture failed the forgery check"
-    assert g["faithfulness"] >= 0.95, g
+    # Deterministic binding criterion:
+    assert g["groundedness"] >= 0.95, g
     assert g["citation_correctness"] >= 0.95, g
-    assert g["hallucination"] <= 0.05, g
     assert g["not_found_honesty"] == 1.0, g
     assert g["requirement_coverage"] >= 0.90, g
+    # Corroborating evidence (judge):
+    assert g["faithfulness"] >= 0.95, g
+    assert g["hallucination"] <= 0.05, g
+
+
+def test_every_deploy_equivalent_config_meets_bars():
+    rep = R.build_report()
+    for c in rep["configs"]:
+        if not c["deploy_equivalent"]:
+            continue
+        g = c["generation"]
+        assert g is not None, f"{c['config_key']}: missing fixtures"
+        assert c["retrieval"]["context_recall"] >= 0.90, c
+        assert g["groundedness"] >= 0.95 and not g["any_forged"], c
 
 
 def test_gate_is_deterministic():
@@ -64,15 +78,14 @@ def test_hash_binding_rejects_tampered_fixture():
     fx = {
         "kind": "negative",
         "retrieved_context": [{"chunk_id": "d#1", "text": "x"}],
-        "retrieved_context_sha256": "deadbeef",  # wrong
+        "retrieved_context_sha256": "deadbeef",
         "prompt_sha256": FX.judge_prompt_sha(),
         "rubric_sha256": FX.judge_rubric_sha(),
     }
     with pytest.raises(AssertionError, match="retrieved_context_sha256"):
         FX.assert_hash_binding(fx, "tampered.json")
-
     fx2 = dict(fx)
     fx2["retrieved_context_sha256"] = FX.context_hash(fx["retrieved_context"])
-    fx2["prompt_sha256"] = "0" * 64  # wrong prompt hash
+    fx2["prompt_sha256"] = "0" * 64
     with pytest.raises(AssertionError, match="prompt_sha256"):
         FX.assert_hash_binding(fx2, "tampered2.json")

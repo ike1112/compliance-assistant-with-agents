@@ -2,11 +2,19 @@
 report.md (rendered from it), select the winner over DEPLOY-EQUIVALENT
 configs only, and write that winner into infra/cdk.json.
 
-Selection rule (plan + PRD): max context-recall@k subject to
-faithfulness >= 0.95, evaluated only over deploy-equivalent FIXED_SIZE
-configs. Deterministic tie-break: then max MRR, then max precision, then
-lexicographically smallest config key. HIERARCHICAL is scored on
-retrieval for comparison but labelled non-deployable and never selected.
+Generation scoring is bound to the RECOMPUTED deterministic retriever:
+each fixture's retrieved_context must equal this run's BM25 top-k for
+that (question, config), and its identity fields must match — a
+hand-authored fixture cannot inject its own context. A missing fixture
+for any deploy-equivalent config is a hard failure (advisory
+HIERARCHICAL has no fixtures by design). The binding generation
+criterion is deterministic groundedness; the recorded judge score is
+corroborating evidence only.
+
+Selection rule: max context-recall@k subject to deterministic
+groundedness >= 0.95 and faithfulness >= 0.95 and no forged fixture,
+over deploy-equivalent FIXED_SIZE configs only. Tie-break: MRR, then
+precision, then config key.
 """
 from __future__ import annotations
 
@@ -17,7 +25,8 @@ from tests.evals.harness import fixtures_io as FX
 from tests.evals.harness import generation_metrics as G
 from tests.evals.harness import retrieval_metrics as RM
 from tests.evals.harness import task_metrics as TM
-from tests.evals.harness.chunking import chunk_corpus
+from tests.evals.harness.chunking import STRATEGIES, chunk_corpus
+from tests.evals.harness.configs import DEPLOY_CONFIGS, SCORED_CONFIGS
 from tests.evals.harness.goldset import (
     index_by_id, load_corpus, load_labeled_subset, load_negatives,
     load_positives)
@@ -30,14 +39,58 @@ REPORT_MD = EVALS_DIR / "report.md"
 CDK_JSON = REPO / "infra" / "cdk.json"
 
 FAITHFULNESS_BAR = 0.95
+GROUNDEDNESS_BAR = 0.95
+_DEPLOY_KEYS = {FX.config_key(s, m, o) for s, m, o in DEPLOY_CONFIGS}
 
-# Every config the report scores: 2 deploy-equivalent FIXED_SIZE + 1
-# advisory HIERARCHICAL (satisfies "FIXED_SIZE + >=1 of HIER/SEMANTIC").
-SCORED_CONFIGS = [
-    ("FIXED_SIZE", 512, 20),
-    ("FIXED_SIZE", 256, 15),
-    ("HIERARCHICAL", 250, 20),
-]
+
+def _expected_context(idx: BM25Index, question: str) -> list[dict]:
+    return [{"chunk_id": c.chunk_id, "text": c.text}
+            for c, _ in idx.search(question, K_DEFAULT)]
+
+
+def _assert_bound(fx: dict, path_name: str, *, item_id: str, question: str,
+                  kind: str, cfg: dict, expected_ctx: list[dict]) -> None:
+    FX.assert_hash_binding(fx, path_name)
+    assert fx["item_id"] == item_id, f"{path_name}: item_id mismatch"
+    assert fx["question"] == question, f"{path_name}: question mismatch"
+    assert fx["kind"] == kind, f"{path_name}: kind mismatch"
+    assert fx["chunking_config"] == cfg, f"{path_name}: config mismatch"
+    # The core anti-circularity bind: the fixture's context MUST be this
+    # run's recomputed deterministic top-k (a forged context cannot pass).
+    assert fx["retrieved_context"] == expected_ctx, (
+        f"{path_name}: retrieved_context != recomputed BM25 top-k")
+
+
+def _generation(idx: BM25Index, cfg_key: str, cfg: dict, positives,
+                negatives, by_id, subset_ids, expected_by_id) -> dict:
+    pos_fx, neg_fx, scored = {}, [], []
+    for p in positives:
+        fp = FX.fixture_path(p.id, cfg_key)
+        assert fp.exists(), (
+            f"missing fixture {fp.name} for deploy-equivalent config "
+            f"{cfg_key} — hard fail (no silent skip)")
+        fx = FX.load_fixture(fp)
+        _assert_bound(fx, fp.name, item_id=p.id, question=p.question,
+                      kind="positive", cfg=cfg,
+                      expected_ctx=_expected_context(idx, p.question))
+        pos_fx[p.id] = fx
+        scored.append(G.score_positive(
+            fx, [by_id[g] for g in p.gold_passage_ids]))
+    for n in negatives:
+        fp = FX.fixture_path(n.id, cfg_key)
+        assert fp.exists(), (
+            f"missing fixture {fp.name} for deploy-equivalent config "
+            f"{cfg_key} — hard fail (no silent skip)")
+        fx = FX.load_fixture(fp)
+        _assert_bound(fx, fp.name, item_id=n.id, question=n.question,
+                      kind="negative", cfg=cfg,
+                      expected_ctx=_expected_context(idx, n.question))
+        neg_fx.append(fx)
+    agg = G.aggregate_generation(scored)
+    agg["not_found_honesty"] = TM.not_found_honesty(neg_fx)
+    agg["requirement_coverage"] = TM.requirement_coverage(
+        pos_fx, subset_ids, expected_by_id)
+    return agg
 
 
 def _retrieval(idx: BM25Index, positives, by_id) -> dict:
@@ -47,33 +100,6 @@ def _retrieval(idx: BM25Index, positives, by_id) -> dict:
         top = [c for c, _ in idx.search(p.question, K_DEFAULT)]
         per.append((top, gold))
     return RM.mean_retrieval(per)
-
-
-def _generation(cfg_key: str, positives, negatives, by_id,
-                subset_ids, expected_by_id) -> dict | None:
-    """None when this config has no committed fixtures (advisory)."""
-    pos_fx, neg_fx, scored = {}, [], []
-    for p in positives:
-        fp = FX.fixture_path(p.id, cfg_key)
-        if not fp.exists():
-            return None
-        fx = FX.load_fixture(fp)
-        FX.assert_hash_binding(fx, fp.name)
-        pos_fx[p.id] = fx
-        gold = [by_id[g].text for g in p.gold_passage_ids]
-        scored.append(G.score_positive(fx, gold))
-    for n in negatives:
-        fp = FX.fixture_path(n.id, cfg_key)
-        if not fp.exists():
-            return None
-        fx = FX.load_fixture(fp)
-        FX.assert_hash_binding(fx, fp.name)
-        neg_fx.append(fx)
-    agg = G.aggregate_generation(scored)
-    agg["not_found_honesty"] = TM.not_found_honesty(neg_fx)
-    agg["requirement_coverage"] = TM.requirement_coverage(
-        pos_fx, subset_ids, expected_by_id)
-    return agg
 
 
 def build_report() -> dict:
@@ -86,27 +112,27 @@ def build_report() -> dict:
 
     configs = []
     for strat, mt, ov in SCORED_CONFIGS:
-        from tests.evals.harness.chunking import STRATEGIES
         cfg_key = FX.config_key(strat, mt, ov)
+        cfg = {"strategy": strat, "max_tokens": mt, "overlap_pct": ov}
         idx = BM25Index(chunk_corpus(corpus, strat, mt, ov))
-        entry = {
-            "strategy": strat,
-            "max_tokens": mt,
-            "overlap_pct": ov,
-            "config_key": cfg_key,
-            "deploy_equivalent": STRATEGIES[strat],
+        deploy = STRATEGIES[strat]
+        gen = None
+        if deploy:  # advisory configs have no fixtures by design
+            gen = _generation(idx, cfg_key, cfg, positives, negatives,
+                              by_id, subset_ids, expected_by_id)
+        configs.append({
+            "strategy": strat, "max_tokens": mt, "overlap_pct": ov,
+            "config_key": cfg_key, "deploy_equivalent": deploy,
             "retrieval": _retrieval(idx, positives, by_id),
-            "generation": _generation(
-                cfg_key, positives, negatives, by_id,
-                subset_ids, expected_by_id),
-        }
-        configs.append(entry)
+            "generation": gen,
+        })
 
     eligible = [
         c for c in configs
         if c["deploy_equivalent"]
         and c["generation"] is not None
         and not c["generation"]["any_forged"]
+        and c["generation"]["groundedness"] >= GROUNDEDNESS_BAR
         and c["generation"]["faithfulness"] >= FAITHFULNESS_BAR
     ]
     winner = None
@@ -127,8 +153,10 @@ def build_report() -> dict:
     return {
         "k": K_DEFAULT,
         "faithfulness_bar": FAITHFULNESS_BAR,
+        "groundedness_bar": GROUNDEDNESS_BAR,
         "selection_rule": (
-            "max context-recall@k subject to faithfulness >= 0.95 over "
+            "max context-recall@k subject to deterministic groundedness "
+            ">= 0.95 and faithfulness >= 0.95 and no forged fixture, over "
             "deploy-equivalent FIXED_SIZE configs; tie-break MRR, "
             "precision, then config_key"),
         "configs": configs,
@@ -144,20 +172,22 @@ def render_md(report: dict) -> str:
         f"- selection rule: {report['selection_rule']}",
         "",
         "| config | deploy-equiv | recall | precision | MRR | "
-        "faithfulness | hallucination | citation | not-found | req-cov |",
-        "|---|---|---|---|---|---|---|---|---|---|",
+        "groundedness | faithfulness | hallucination | citation | "
+        "not-found | req-cov |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for c in report["configs"]:
         r = c["retrieval"]
-        g = c["generation"]
+        g = c["generation"] or {}
+
         def f(x):
             return f"{x:.3f}" if isinstance(x, (int, float)) else "—"
-        g = g or {}
+
         lines.append(
             f"| {c['config_key']} | {c['deploy_equivalent']} | "
             f"{f(r['context_recall'])} | {f(r['context_precision'])} | "
-            f"{f(r['mrr'])} | {f(g.get('faithfulness'))} | "
-            f"{f(g.get('hallucination'))} | "
+            f"{f(r['mrr'])} | {f(g.get('groundedness'))} | "
+            f"{f(g.get('faithfulness'))} | {f(g.get('hallucination'))} | "
             f"{f(g.get('citation_correctness'))} | "
             f"{f(g.get('not_found_honesty'))} | "
             f"{f(g.get('requirement_coverage'))} |")
@@ -175,14 +205,12 @@ def write_reports(report: dict) -> None:
 
 
 def write_cdk_json(winner: dict) -> None:
-    text = CDK_JSON.read_text(encoding="utf-8")
-    data = json.loads(text)
+    data = json.loads(CDK_JSON.read_text(encoding="utf-8"))
     ctx = data["context"]
     ctx["chunkingStrategy"] = winner["chunkingStrategy"]
     ctx["chunkMaxTokens"] = int(winner["chunkMaxTokens"])
     ctx["chunkOverlapPercent"] = int(winner["chunkOverlapPercent"])
-    CDK_JSON.write_text(
-        json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    CDK_JSON.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
 def main() -> None:  # pragma: no cover - invoked by the live/refresh path

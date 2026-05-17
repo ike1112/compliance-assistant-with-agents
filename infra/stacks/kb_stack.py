@@ -317,6 +317,17 @@ class ComplianceKbStack(cdk.Stack):
         chunk_strategy = self.node.try_get_context("chunkingStrategy") or (
             "FIXED_SIZE"
         )
+        # This stack only emits a fixed-size chunking configuration, so a
+        # non-FIXED_SIZE context value would synthesize a data source
+        # whose declared strategy does not match its configuration. Fail
+        # synth loudly rather than deploy a mislabeled chunker. The RAG
+        # eval harness enforces the same deploy-equivalence invariant.
+        if chunk_strategy != "FIXED_SIZE":
+            raise ValueError(
+                f"chunkingStrategy={chunk_strategy!r} unsupported: this "
+                "stack emits only FIXED_SIZE chunking. Extend the data "
+                "source before selecting another strategy."
+            )
         chunk_max_tokens = int(
             self.node.try_get_context("chunkMaxTokens") or 512
         )

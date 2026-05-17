@@ -47,6 +47,18 @@ def test_contained_by_relevance_direction():
     assert M.recall([_c("1", "long gold passage")], gold) == 1.0
 
 
+def test_crlf_substring_relevance_is_exact():
+    # The SCHEMA defines exact bytes; a CRLF-bearing gold passage is
+    # relevant only to a chunk that preserves the exact \r\n (no newline
+    # normalization anywhere in the path).
+    gold = ["line one\r\nline two of the passage"]
+    assert M.recall([_c("1", "x line one\r\nline two of the passage y")],
+                    gold) == 1.0
+    # an LF-normalized chunk must NOT be counted relevant
+    assert M.recall([_c("1", "x line one\nline two of the passage y")],
+                    gold) == 0.0
+
+
 def test_mean_retrieval_aggregates():
     gold = ["alpha"]
     per = [([_c("1", "alpha")], gold), ([_c("1", "no")], gold)]

@@ -1,7 +1,8 @@
 {
   "k": 5,
   "faithfulness_bar": 0.95,
-  "selection_rule": "max context-recall@k subject to faithfulness >= 0.95 over deploy-equivalent FIXED_SIZE configs; tie-break MRR, precision, then config_key",
+  "groundedness_bar": 0.95,
+  "selection_rule": "max context-recall@k subject to deterministic groundedness >= 0.95 and faithfulness >= 0.95 and no forged fixture, over deploy-equivalent FIXED_SIZE configs; tie-break MRR, precision, then config_key",
   "configs": [
     {
       "strategy": "FIXED_SIZE",
@@ -17,6 +18,7 @@
       "generation": {
         "faithfulness": 1.0,
         "hallucination": 0.0,
+        "groundedness": 0.985515873015873,
         "citation_correctness": 1.0,
         "any_forged": false,
         "not_found_honesty": 1.0,
@@ -37,6 +39,7 @@
       "generation": {
         "faithfulness": 1.0,
         "hallucination": 0.0,
+        "groundedness": 0.9827380952380952,
         "citation_correctness": 1.0,
         "any_forged": false,
         "not_found_honesty": 1.0,

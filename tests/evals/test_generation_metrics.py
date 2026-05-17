@@ -1,10 +1,15 @@
-"""Deterministic citation-correctness (on render_citations) + judge
-parsing + the anti-forgery groundedness cross-check.
+"""Deterministic citation-correctness (bound to render_citations + gold
+doc), loud-on-silent-render-failure, judge parsing, groundedness, and
+the anti-forgery cross-check.
 """
+from collections import namedtuple
+
 import pytest
 
 from compliance_assistant.citations import render_citations
 from tests.evals.harness import generation_metrics as G
+
+P = namedtuple("P", "doc_id text")
 
 
 def _fx(answer, refs, judge):
@@ -29,26 +34,40 @@ def test_parse_judge_rejects_out_of_range():
         G.parse_judge('{"faithfulness":1.4,"hallucination":0}')
 
 
-def test_citation_correct_true_when_block_matches_and_overlaps_gold():
-    gold = "PCI DSS v4.0 Requirement 3.5.1 stored pan unreadable"
-    refs = [("s3://corpus/req-03.txt", gold)]
+def test_citation_correct_true_when_block_matches_gold_doc():
+    gold_text = "PCI DSS v4.0 Requirement 3.5.1 stored pan unreadable"
+    refs = [("s3://corpus/req-03.txt", gold_text)]
     block = render_citations(_fx("", refs, "")["trace"])
-    fx = _fx("Answer text.\n\n" + block, refs, '{"faithfulness":1,"hallucination":0}')
-    assert G.citation_correct(fx, [gold]) is True
+    fx = _fx("Answer text.\n\n" + block, refs,
+             '{"faithfulness":1,"hallucination":0}')
+    assert G.citation_correct(fx, [P("req-03", gold_text)]) is True
+
+
+def test_citation_incorrect_when_cited_doc_not_a_gold_doc():
+    gold_text = "stored pan must be unreadable everywhere"
+    refs = [("s3://corpus/req-99.txt", gold_text)]
+    block = render_citations(_fx("", refs, "")["trace"])
+    fx = _fx("A.\n\n" + block, refs, '{"faithfulness":1,"hallucination":0}')
+    # gold passage is in doc req-03, but the cited source is req-99
+    assert G.citation_correct(fx, [P("req-03", gold_text)]) is False
 
 
 def test_citation_incorrect_when_block_tampered():
-    gold = "stored pan must be unreadable everywhere"
-    refs = [("s3://corpus/req-03.txt", gold)]
+    gold_text = "stored pan must be unreadable everywhere"
+    refs = [("s3://corpus/req-03.txt", gold_text)]
     fx = _fx("Answer.\n\n## Sources\n\n1. `s3://evil` — fake", refs,
              '{"faithfulness":1,"hallucination":0}')
-    assert G.citation_correct(fx, [gold]) is False
+    assert G.citation_correct(fx, [P("req-03", gold_text)]) is False
 
 
-def test_citation_incorrect_when_no_sources_block():
-    gold = "xय"
-    fx = _fx("Answer with no sources", [("s3://x", "y")], "{}")
-    assert G.citation_correct(fx, [gold]) is False
+def test_citation_raises_loudly_on_silent_render_failure(monkeypatch):
+    gold_text = "x y z"
+    refs = [("s3://corpus/req-03.txt", gold_text)]
+    fx = _fx("A.\n\n## Sources\n\n1. x", refs, "{}")
+    # trace HAS references but render returns the no-sources placeholder
+    monkeypatch.setattr(G, "render_citations", lambda _t: G._NO_SOURCES)
+    with pytest.raises(AssertionError, match="no-sources placeholder"):
+        G.citation_correct(fx, [P("req-03", gold_text)])
 
 
 def test_groundedness_high_when_answer_in_context():
@@ -63,23 +82,22 @@ def test_groundedness_low_when_answer_unrelated():
 
 
 def test_score_positive_flags_forgery():
-    # judge claims perfect faithfulness but answer is ungrounded -> forged
-    refs = [("s3://x", "key management rotation cryptography")]
+    refs = [("s3://corpus/req-03.txt", "key management rotation cryptography")]
     fx = _fx("Completely unrelated banana statement here today.",
              refs, '{"faithfulness":1.0,"hallucination":0.0}')
-    s = G.score_positive(fx, ["key management rotation cryptography"])
+    s = G.score_positive(fx, [P("req-03", "key management rotation cryptography")])
     assert s["forged"] is True
 
 
-def test_aggregate_generation_means():
+def test_aggregate_generation_means_include_groundedness():
     scored = [
-        {"faithfulness": 1.0, "hallucination": 0.0,
+        {"faithfulness": 1.0, "hallucination": 0.0, "groundedness": 1.0,
          "citation_correct": True, "forged": False},
-        {"faithfulness": 0.9, "hallucination": 0.1,
+        {"faithfulness": 0.9, "hallucination": 0.1, "groundedness": 0.8,
          "citation_correct": False, "forged": False},
     ]
     agg = G.aggregate_generation(scored)
     assert agg["faithfulness"] == pytest.approx(0.95)
-    assert agg["hallucination"] == pytest.approx(0.05)
+    assert agg["groundedness"] == pytest.approx(0.9)
     assert agg["citation_correctness"] == 0.5
     assert agg["any_forged"] is False

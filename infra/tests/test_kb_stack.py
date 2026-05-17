@@ -6,6 +6,7 @@ deliberate regression guard: spec section 3.1 rejected OpenSearch
 Serverless on idle cost, so its presence is a failure, not an option.
 """
 import aws_cdk as cdk
+import pytest
 from aws_cdk.assertions import Template, Match
 
 from stacks.kb_stack import ComplianceKbStack
@@ -15,6 +16,16 @@ def _template() -> Template:
     app = cdk.App()
     stack = ComplianceKbStack(app, "TestKb")
     return Template.from_stack(stack)
+
+
+def test_non_fixed_size_chunking_strategy_is_rejected():
+    # This stack emits only fixed_size_chunking_configuration; a
+    # non-FIXED_SIZE context value must fail synth, not deploy a
+    # mislabeled chunker (deploy-equivalence invariant the RAG eval
+    # harness relies on).
+    app = cdk.App(context={"chunkingStrategy": "HIERARCHICAL"})
+    with pytest.raises(ValueError, match="unsupported"):
+        ComplianceKbStack(app, "TestKbBadChunk")
 
 
 def test_corpus_bucket_is_versioned():

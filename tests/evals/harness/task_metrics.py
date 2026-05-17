@@ -22,7 +22,12 @@ _REQUIREMENT_RE = re.compile(
 # requirement; coverage matches on the requirement number plus a PCI/
 # requirement context word (so a bare number cannot match by accident).
 _REQ_NUM_RE = re.compile(r"Req(?:uirement)?\s*([0-9]+(?:\.[0-9]+)+)", re.I)
-_REQ_CONTEXT_RE = re.compile(r"(pci\s*dss|requirement|\breq\b)", re.I)
+
+
+def _prose(answer: str) -> str:
+    # Score the answer prose only; a trailing "## Sources" block is
+    # rendered citation text, not a model claim.
+    return answer.split("## Sources", 1)[0]
 
 
 def _requirement_number(expected: str) -> str | None:
@@ -31,9 +36,17 @@ def _requirement_number(expected: str) -> str | None:
 
 
 def covers_requirement(answer: str, expected: str) -> bool:
+    """The expected requirement is covered iff the answer PROSE cites it
+    by its canonical dotted number directly after Req/Requirement, with
+    the number bounded so 1.2.7 does not match 11.2.7 or 1.2.70. Accepts
+    both the gold "Req" abbreviation and the corpus "Requirement"
+    wording; the frozen gold and the >=0.90 bar are unchanged."""
     num = _requirement_number(expected)
-    return bool(num) and num in answer and bool(
-        _REQ_CONTEXT_RE.search(answer))
+    if not num:
+        return False
+    pat = re.compile(
+        r"Req(?:uirement)?\s+" + re.escape(num) + r"(?![0-9.])", re.I)
+    return bool(pat.search(_prose(answer)))
 
 
 def is_not_found(answer: str) -> bool:

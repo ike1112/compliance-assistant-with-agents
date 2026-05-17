@@ -1,15 +1,14 @@
 """Generation metrics.
 
-citation-correctness is DETERMINISTIC and structurally depends on
-compliance_assistant.citations.render_citations (the mutation-leg pure
-module): the recorded answer's "## Sources" block must equal
-render_citations(recorded_trace) exactly AND a rendered reference must
-overlap a gold passage — so a tampered Sources block or a wrong citation
-fails, and mutating render_citations breaks this metric.
-
-faithfulness / hallucination come from the recorded raw judge response,
-parsed per the committed rubric, and are cross-checked by a deterministic
-groundedness lower-bound (anti-forgery).
+The gate's binding generation criterion is DETERMINISTIC: recomputed
+lexical groundedness of the answer against the recomputed retrieved
+context, plus a deterministic citation-correctness check that
+structurally depends on compliance_assistant.citations.render_citations
+(the mutation-leg pure module). The recorded LLM judge
+faithfulness/hallucination are corroborating EVIDENCE only — offline
+cannot attest that an LLM produced them, so they may not, by themselves,
+pass the gate (see docs/evals.md "residual trust"). A high judge score
+with low deterministic groundedness is treated as forged → FAIL.
 """
 from __future__ import annotations
 
@@ -23,6 +22,7 @@ _WORD_RE = re.compile(r"[a-z0-9]+")
 _GROUNDED_JACCARD = 0.30
 _GROUNDED_ITEM_FLOOR = 0.40
 _FAITHFUL_FORGERY_GATE = 0.95
+_NO_SOURCES = render_citations({})  # the deterministic placeholder block
 
 
 def sources_block(answer: str) -> str:
@@ -39,20 +39,34 @@ def _tok(text: str) -> set[str]:
     return set(_WORD_RE.findall(text.lower()))
 
 
-def citation_correct(fx: dict, gold_texts: list[str]) -> bool:
-    expected = render_citations(fx["trace"])
-    block = sources_block(fx["system_answer"])
-    if not block or block != expected.strip():
+def _trace_has_refs(trace) -> bool:
+    if not isinstance(trace, dict):
         return False
-    if expected.strip() == render_citations({}).strip():
-        return False  # "no grounded sources" is not a correct citation
+    for c in trace.get("citations") or []:
+        if isinstance(c, dict) and (c.get("retrievedReferences") or []):
+            return True
+    return False
+
+
+def citation_correct(fx: dict, gold_passages: list) -> bool:
+    """Deterministic. gold_passages: list of goldset.Passage for the
+    positive. A silent render failure on a trace that HAS references is
+    raised loudly (never scored as a quiet 0.0)."""
+    expected = render_citations(fx["trace"]).strip()
+    if _trace_has_refs(fx["trace"]) and expected == _NO_SOURCES.strip():
+        raise AssertionError(
+            "render_citations returned the no-sources placeholder for a "
+            "trace that has references — refusing to score a silent 0.0")
+    block = sources_block(fx["system_answer"])
+    if not block or block != expected:
+        return False
+    if expected == _NO_SOURCES.strip():
+        return False
     ctx = " ".join(c["text"] for c in fx["retrieved_context"])
-    # At least one cited snippet must overlap a gold passage AND the
-    # retrieved context (the answer cites a right, retrieved source).
-    for gt in gold_texts:
-        if gt in ctx and any(
-            w in expected for w in gt.split()[:8] if len(w) > 4
-        ):
+    # At least one cited source doc must be a gold passage's doc AND that
+    # gold passage's exact text must be in the (recomputed-bound) context.
+    for p in gold_passages:
+        if f"s3://corpus/{p.doc_id}.txt" in expected and p.text in ctx:
             return True
     return False
 
@@ -83,16 +97,16 @@ def parse_judge(raw: str) -> tuple[float, float]:
     return f, h
 
 
-def score_positive(fx: dict, gold_texts: list[str]) -> dict:
+def score_positive(fx: dict, gold_passages: list) -> dict:
     f, h = parse_judge(fx["judge_raw_response"])
     ctx = " ".join(c["text"] for c in fx["retrieved_context"])
     g = groundedness(fx["system_answer"], ctx)
     forged = f >= _FAITHFUL_FORGERY_GATE and g < _GROUNDED_ITEM_FLOOR
     return {
-        "faithfulness": f,
-        "hallucination": h,
-        "groundedness": g,
-        "citation_correct": citation_correct(fx, gold_texts),
+        "faithfulness": f,           # corroborating evidence only
+        "hallucination": h,          # corroborating evidence only
+        "groundedness": g,           # DETERMINISTIC binding signal
+        "citation_correct": citation_correct(fx, gold_passages),
         "forged": forged,
     }
 
@@ -101,10 +115,12 @@ def aggregate_generation(scored: list[dict]) -> dict:
     n = len(scored)
     if n == 0:
         return {"faithfulness": 0.0, "hallucination": 1.0,
-                "citation_correctness": 0.0, "any_forged": True}
+                "groundedness": 0.0, "citation_correctness": 0.0,
+                "any_forged": True}
     return {
         "faithfulness": sum(s["faithfulness"] for s in scored) / n,
         "hallucination": sum(s["hallucination"] for s in scored) / n,
+        "groundedness": sum(s["groundedness"] for s in scored) / n,
         "citation_correctness": sum(
             1 for s in scored if s["citation_correct"]) / n,
         "any_forged": any(s["forged"] for s in scored),

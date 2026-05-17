@@ -24,16 +24,19 @@ from pathlib import Path
 
 def _codex_bin() -> str:
     # Windows: the runnable shim is codex.cmd, not the extensionless
-    # bash script that CreateProcess cannot launch.
+    # bash script that CreateProcess cannot launch. Refuse a bare name:
+    # only an absolute, existing executable is acceptable (no PATH/CWD
+    # hijack of a --dangerously-bypass invocation).
     for name in ("codex.cmd", "codex"):
         found = shutil.which(name)
-        if found:
+        if found and Path(found).is_absolute() and Path(found).exists():
             return found
     npm = Path(os.environ.get("APPDATA", "")) / "npm" / "codex.cmd"
-    return str(npm) if npm.exists() else "codex"
-
-
-_CODEX = _codex_bin()
+    if npm.is_absolute() and npm.exists():
+        return str(npm)
+    raise RuntimeError(
+        "codex CLI not found as an absolute executable; refusing "
+        "bare-name exec for a sandbox-bypass invocation")
 
 from compliance_assistant.citations import render_citations
 from tests.evals.harness import fixtures_io as FX
@@ -46,12 +49,8 @@ HARNESS_VERSION = "1"
 MODEL_ID = "codex-cli"
 REPO = Path(__file__).resolve().parents[3]
 
-# Deploy-equivalent FIXED_SIZE configs get full generation+judge
-# fixtures; HIERARCHICAL is advisory (retrieval only, no fixtures).
-DEPLOY_CONFIGS = [
-    ("FIXED_SIZE", 512, 20),
-    ("FIXED_SIZE", 256, 15),
-]
+# Single source of truth shared with report.py so the two cannot drift.
+from tests.evals.harness.configs import DEPLOY_CONFIGS  # noqa: E402
 
 _ANSWER_TMPL = """\
 You are a retrieval-augmented PCI DSS compliance assistant. Answer the \
@@ -86,7 +85,8 @@ def _codex(prompt: str, schema: dict | None = None, timeout: int = 240) -> str:
     with tempfile.TemporaryDirectory() as td:
         out = Path(td) / "last.txt"
         cmd = [
-            _CODEX, "exec", "--dangerously-bypass-approvals-and-sandbox",
+            _codex_bin(), "exec",
+            "--dangerously-bypass-approvals-and-sandbox",
             "-s", "read-only", "--skip-git-repo-check", "--ephemeral",
             "-C", str(REPO), "-o", str(out),
         ]
@@ -217,9 +217,11 @@ def record(progress=lambda m: None) -> int:
 
 
 def _head() -> str:
-    return subprocess.run(
+    out = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=str(REPO), text=True,
-        capture_output=True).stdout.strip()
+        capture_output=True, check=True).stdout.strip()
+    assert out, "could not resolve HEAD for fixture provenance"
+    return out
 
 
 if __name__ == "__main__":  # pragma: no cover
