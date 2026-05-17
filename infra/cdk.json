@@ -6,6 +6,8 @@
     "chunkOverlapPercent": 20,
     "embeddingModel": "amazon.titan-embed-text-v2:0",
     "foundationModel": "amazon.nova-pro-v1:0",
+    "runtimeMaxLifetimeSeconds": 28800,
+    "agentRuntimeImageTag": "latest",
     "@aws-cdk/core:bootstrapQualifier": "complianceha"
   }
 }

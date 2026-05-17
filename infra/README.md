@@ -14,6 +14,12 @@ citations part of §3.4.
   RDS Data API), Knowledge Base, S3 data source, ingestion Lambda.
 - `stacks/agent_stack.py` — `ComplianceAgentStack`: Guardrail (+pinned
   version), Agent (KB-associated), alias, SSM parameters.
+- `stacks/runtime_stack.py` — `ComplianceRuntimeStack`: AgentCore
+  Runtime host for the crew, versioned KMS report bucket, ECR repo,
+  least-privilege execution role. Deploys after the agent stack.
+- `runtime/` — the linux/arm64 container artifact: `server.py` is the
+  AgentCore HTTP service-contract shim (async pattern); `Dockerfile`
+  is built/pushed by the operator at the HUMAN-GATE.
 - `lambdas/ingest/` — re-index handler (S3 ObjectCreated → StartIngestionJob).
 - `tests/` — synth-time security/cost assertions.
 
@@ -26,6 +32,46 @@ Lambda) and exposes no Serverless-v2 capacity props, so it cannot meet
 the spec-locked 0-ACU requirement. pgvector is bootstrapped instead by
 an inline-code trigger over the RDS Data API — no Docker, no driver,
 no in-VPC Lambda.
+
+## AgentCore Runtime hosting decision (current-docs verified, 2026-05)
+
+**Decision:** host the crew on **AgentCore Runtime**
+(`AWS::BedrockAgentCore::Runtime`), not ECS Fargate.
+
+**Current-docs verification** (AWS docs, May 2026):
+
+- Amazon Bedrock AgentCore is **GA since 2025-10**; **CloudFormation
+  support since 2025-09**
+  ([whats-new](https://aws.amazon.com/about-aws/whats-new/2025/10/amazon-bedrock-agentcore-available/)).
+- The L1 construct `aws_cdk.aws_bedrockagentcore.CfnRuntime` ships in
+  the repo-pinned `aws-cdk-lib>=2.254.0` (verified importable at build).
+- `LifecycleConfiguration.MaxLifetime` accepts 60–28800 s; **28800 s
+  (8 h) is the documented maximum**
+  ([lifecycle settings](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-lifecycle-settings.html)).
+- **Synchronous invocations are bounded (~15 min): a session is
+  terminated if the invocation path blocks the `/ping` health thread.**
+  Minutes-to-hours work MUST use the documented asynchronous pattern —
+  background execution + a `/ping` that reports `HealthyBusy`
+  ([long-running agents](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-long-run.html)).
+  `runtime/server.py` implements exactly that, so the crew genuinely
+  reaches the 8 h ceiling. Serverless scale-to-zero is inherent
+  (consumption billing; the microVM is terminated post-session).
+
+**Conclusion:** AgentCore Runtime IaC is mature *and* async-suitable for
+this batch crew → the primary path, not the fallback.
+
+**Rejected alternative — ECS Fargate fallback (documented):** a
+run-to-completion Fargate task (arm64, no NAT via public subnet + VPC
+endpoints, S3-versioned report output) would also satisfy the run-to-
+completion shape. It is unnecessary given the verified maturity: more
+moving parts, no idle-zero without extra plumbing, and it would
+duplicate AgentCore's session isolation. Retained here only as the
+documented contingency if AgentCore IaC regresses.
+
+The hand-rolled stdlib shim (no `bedrock-agentcore` SDK) is deliberate:
+it keeps the runtime closure to the crew's own deps and makes the
+service contract fully unit-testable offline (`test_runtime_server.py`),
+matching this repo's dependency-light, deterministic ethos.
 
 ## Toolchain
 
@@ -58,6 +104,18 @@ npx --yes aws-cdk@latest synth --all -q
 - **W3005 redundant `DependsOn` (×6)** — CDK emits explicit
   `DependsOn` alongside the `GetAtt`/`Ref` it already implies (and we
   add explicit KB→cluster/bootstrap ordering on purpose). Benign.
+- **E3006 `AWS::BedrockAgentCore::Runtime` "does not exist in
+  <region>"** — cfn-lint's bundled per-region resource catalog lags
+  this **GA** resource type (GA 2025-10; first-class CloudFormation;
+  the L1 ships in the pinned `aws-cdk-lib`). It is a catalog-lag false
+  positive, not a template defect: cfn-lint is therefore run
+  **region-scoped to the single deploy region `us-east-1`**
+  (`cfn-lint --region us-east-1`, the region `app.py` and the Phase 1
+  runbook deploy to), where AgentCore Runtime is available and the
+  template lints **0 errors** (only the W3045 access-log warning
+  above, identical to the KB/agent stacks). The unscoped run only
+  flags non-deploy partitions (cn-/gov-/…); scoping is the correct
+  posture for a GA resource newer than the cfn-lint release.
 
 ### Accepted cfn-guard exceptions
 
@@ -75,6 +133,25 @@ npx --yes aws-cdk@latest synth --all -q
   (spec §6). Revisit if this leaves sample status.
 - **KMS key policy `Resource:"*"`** — the standard CDK-generated
   account-root key policy (resource policy, not an identity wildcard).
+- **`ComplianceRuntimeStack` full cfn-guard runs at operator pre-deploy**
+  (same in-loop streaming limitation as the KB stack). *Reasoning-Gate
+  justification:* in-loop the runtime stack is covered by cfn-lint
+  (0 errors) plus targeted synth assertions in
+  `tests/test_runtime_stack.py` — the AgentCore Runtime resource is
+  present and HTTP/PUBLIC, the report bucket blocks public access and is
+  KMS-encrypted + versioned + TLS-only + access-logged, KMS rotation on,
+  no VPC/NAT, the execution role can invoke the Bedrock Agent and reads
+  exactly the two agent-id SSM params, and **every execution-role
+  statement is resource-scoped with exactly ONE accepted exception**:
+  `ecr:GetAuthorizationToken` with `Resource:"*"`. That action is an
+  account-level token operation with **no resource-level form** in IAM
+  (AWS `bedrock-agentcore` runtime-permissions reference); it is
+  isolated in its own statement and the no-wildcard test asserts it is
+  the *only* literal wildcard, so an accidental future one still fails.
+  CloudWatch metrics and X-Ray (which would each force an additional
+  `Resource:"*"`) are intentionally deferred to the observability phase,
+  so no other identity wildcard exists in this stack. The operator's
+  pre-deploy cfn-guard run checks the same controls enumerated above.
 
 ### Cost snapshot
 
@@ -108,9 +185,40 @@ npx --yes aws-cdk@latest synth --all -q
 cd infra && npx --yes aws-cdk@latest deploy --all --require-approval any-change
 ```
 
+### Runtime stack deploy (OPERATOR-GATED — billable, after the above)
+
+**Required pre-deploy gate:** the RAG evaluation gate
+(`pytest tests/evals -m gate`) MUST pass on the deploying commit before
+the runtime image is built/pushed or `ComplianceRuntimeStack` is
+deployed. The runtime hosts the same crew the eval harness scores;
+shipping a runtime whose grounding/citation quality has not passed the
+gate is not permitted.
+
+**Deploy ordering:** `ComplianceAgentStack` MUST be deployed before
+`ComplianceRuntimeStack` — the crew resolves the Bedrock agent ids from
+SSM (`/compliance-assistant/agent-id`, `-alias-id`) at container start,
+and those parameters are published by the agent stack. `app.py` encodes
+this with `runtime_stack.add_dependency(agent_stack)`.
+
+```
+# 0. gate: pytest tests/evals -m gate            # MUST be green
+# 1. build + push the linux/arm64 crew image to the stack's ECR repo
+ECR_URI=$(aws cloudformation describe-stacks --stack-name ComplianceRuntimeStack \
+  --query "Stacks[0].Outputs[?OutputKey=='RuntimeRepoUri'].OutputValue" --output text)
+docker buildx build --platform linux/arm64 -f infra/runtime/Dockerfile \
+  -t "$ECR_URI:<tag>" --push .
+# 2. set the tag and deploy the runtime stack (agent stack first)
+cd infra && npx --yes aws-cdk@latest deploy ComplianceRuntimeStack \
+  -c agentRuntimeImageTag=<tag> --require-approval any-change
+```
+
 Post-deploy: upload a sample regulatory PDF to the corpus bucket,
 confirm an ingestion job runs, then `crewai run` and confirm
-`output/2-report.md` ends with a populated `## Sources` block.
+`output/2-report.md` ends with a populated `## Sources` block. For the
+hosted runtime, `POST /invocations` returns a `run_id`; poll `/ping`
+until `Healthy` and confirm the report artifact lands in the versioned
+report bucket (a no-grounded-findings run uploads `1-requirements.md`
+and reports success without `2-report.md` — that is correct behaviour).
 
 Destroy: `npx --yes aws-cdk@latest destroy --all`. The corpus and
 access-log buckets are `RETAIN` by design (evidence preservation) —
