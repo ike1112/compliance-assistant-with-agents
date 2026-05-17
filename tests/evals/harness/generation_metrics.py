@@ -90,6 +90,9 @@ def parse_judge(raw: str) -> tuple[float, float]:
     matches = re.findall(r"\{[^{}]*\}", raw, re.DOTALL)
     if not matches:
         raise AssertionError("judge_raw_response has no JSON object")
+    # A valid judge object is tiny; bound it so a malformed fixture fails
+    # with a clear message rather than via a downstream parser quirk.
+    assert len(matches[-1]) <= 4096, "judge JSON object implausibly large"
     obj = json.loads(matches[-1])
     f = float(obj["faithfulness"])
     h = float(obj["hallucination"])

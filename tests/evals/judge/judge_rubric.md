@@ -29,3 +29,26 @@ The judge prompt and this rubric are hash-bound: every fixture records
 `prompt_sha256` and `rubric_sha256`; the gate fails if they do not match
 the committed files, so the recorded scores cannot be decoupled from the
 committed judging contract.
+
+## Residual trust (the binding criterion is deterministic)
+
+Offline execution cannot attest that an LLM actually produced a given
+`judge_raw_response`; hash-binding only proves the fixture names this
+committed contract. Therefore the recorded judge `faithfulness` and
+`hallucination` are **corroborating evidence only** and never, by
+themselves, pass the gate. The BINDING generation criterion is
+deterministic and recomputed: lexical groundedness of the recorded
+answer against the **recomputed** BM25 retrieved context must be
+≥ 0.95, with no forged item (a high recorded faithfulness combined with
+low deterministic groundedness is treated as forged → FAIL), and the
+fixture's `retrieved_context` must byte-equal this run's deterministic
+top-k. The one residual trust is that the recorded *system answer* was
+produced by the live model run (re-recordable only via `EVALS_LIVE=1`);
+every metric that decides pass/fail is recomputed deterministically from
+it. Negative answers carry the same caveat: their context is bound to
+the recomputed retriever, the "Not found in knowledge base" text is a
+trusted live recording, and any requirement citation in a negative
+fails not-found-honesty (an honest negative can only help, never inflate
+a score). This rubric is gate-side interpretation only — it is never
+sent to the model (the recorder sends `judge_prompt.md` alone), so its
+text never influences a recorded judge response.

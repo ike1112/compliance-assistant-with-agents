@@ -69,9 +69,9 @@ def test_every_deploy_equivalent_config_meets_bars():
 
 
 def test_gate_is_deterministic():
-    a = json.dumps(R.build_report(), sort_keys=True)
-    b = json.dumps(R.build_report(), sort_keys=True)
-    assert a == b
+    # >=10 byte-identical canonical recomputes (the B4 spec strength).
+    runs = {json.dumps(R.build_report(), sort_keys=True) for _ in range(10)}
+    assert len(runs) == 1, "build_report() is not deterministic across 10 runs"
 
 
 def test_hash_binding_rejects_tampered_fixture():

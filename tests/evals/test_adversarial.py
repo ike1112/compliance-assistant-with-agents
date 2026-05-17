@@ -42,6 +42,25 @@ def test_tampered_context_is_rejected(fixtures_copy):
         R.build_report()
 
 
+def test_both_configs_forged_yields_no_winner(fixtures_copy):
+    # Ungrounded answer + a forged perfect judge score on the same
+    # positive in BOTH deploy-equivalent configs -> any_forged on both
+    # -> no eligible config -> the gate produces NO winner (fail-closed,
+    # end to end, not just the metric).
+    for cfg in ("FIXED_SIZE-512-20", "FIXED_SIZE-256-15"):
+        fp = fixtures_copy / f"pos-001__{cfg}.json"
+        fx = json.loads(fp.read_text(encoding="utf-8"))
+        # keep retrieved_context (so _assert_bound passes) — exercise the
+        # forgery path specifically, not the context bind.
+        # Genuinely ungrounded (no token overlap with the PCI context),
+        # with a forged perfect judge score.
+        fx["system_answer"] = "Zzqq vvbb wxyz plover. Glorptang frobnitz."
+        fx["judge_raw_response"] = '{"faithfulness":1.0,"hallucination":0.0}'
+        fp.write_text(json.dumps(fx), encoding="utf-8")
+    rep = R.build_report()
+    assert rep["winner"] is None, "forged answers must yield no winner"
+
+
 def test_fabricating_negative_drops_not_found_honesty(fixtures_copy):
     fp = fixtures_copy / "neg-001__FIXED_SIZE-512-20.json"
     fx = json.loads(fp.read_text(encoding="utf-8"))

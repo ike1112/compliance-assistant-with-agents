@@ -28,6 +28,24 @@ def test_at_least_two_deploy_equivalent_plus_advisory_hierarchical():
     assert hier[0]["generation"] is None  # advisory, no fixtures by design
 
 
+def test_advisory_config_can_never_win_even_with_top_retrieval():
+    rep = R.build_report()
+    hier = next(c for c in rep["configs"]
+                if c["strategy"] == "HIERARCHICAL")
+    wkey = (rep["winner"]["chunkingStrategy"],
+            rep["winner"]["chunkMaxTokens"],
+            rep["winner"]["chunkOverlapPercent"])
+    win = next(c for c in rep["configs"]
+               if (c["strategy"], c["max_tokens"], c["overlap_pct"]) == wkey)
+    # Advisory retrieval is >= the winner's, yet it is still not selected
+    # (excluded by deploy_equivalent + generation is None).
+    assert hier["retrieval"]["context_recall"] >= \
+        win["retrieval"]["context_recall"]
+    assert hier["deploy_equivalent"] is False
+    assert hier["generation"] is None
+    assert win["deploy_equivalent"] is True
+
+
 def test_report_json_and_md_committed():
     assert R.REPORT_JSON.is_file(), "tests/evals/report.json missing"
     assert R.REPORT_MD.is_file(), "tests/evals/report.md missing"
