@@ -1,0 +1,97 @@
+{
+  "kind": "negative",
+  "item_id": "neg-004",
+  "chunking_config": {
+    "strategy": "FIXED_SIZE",
+    "max_tokens": 256,
+    "overlap_pct": 15
+  },
+  "question": "What are GLBA Safeguards Rule requirements for customer information disposal by financial institutions?",
+  "retrieved_context": [
+    {
+      "chunk_id": "req-01-network-security-controls#fs-256-15-0000",
+      "text": "PCI DSS Requirement 1: Network Security Controls Scope and Intent Requirement 1 addresses how an entity designs, implements, and maintains network security controls that protect the cardholder data environment from untrusted networks and unnecessary traffic. These controls include firewalls, router rules, cloud security groups, host-based filtering, and other technologies that enforce network traffic restrictions. The purpose is not merely to install a firewall; the entity must know what traffic is allowed, why it is allowed, where it is documented, and how changes are controlled. Roles, Documentation, and Rule Management Network security control standards must define how controls are configured, maintained, and reviewed for all connections into and out of the cardholder data environment. The standards should identify responsible personnel, permitted services, secure management methods, and the evidence needed to show that rule sets are intentional rather than accidental. PCI DSS v4.0 Requirement 1.2.1 expects configuration standards for network security controls to be defined, implemented, and maintained. The standards must support consistent rule management across firewalls, routers, virtual network controls, and other technologies used to restrict traffic. PCI DSS v4.0 Requirement 1.2.5 requires all allowed services, protocols, and ports to be identified, approved, and tied to a defined business need. If an insecure service, protocol, or port is used, the entity must implement security features that reduce the risk of that use. PCI DSS v4.0 Requirement 1.2.7 requires reviews of network security control configurations at least once every six months. The review should confirm that rules remain justified, documented, and aligned with current business and security needs."
+    },
+    {
+      "chunk_id": "req-12-security-program#fs-256-15-0003",
+      "text": "Requirement 12.8.1 requires a list of all third-party service providers with which account data is shared or that could affect the security of account data to be maintained. The list supports governance of outsourced services. PCI DSS v4.0 Requirement 12.8.2 requires written agreements with service providers that include an acknowledgement of the provider's responsibility for the security of account data or the security-impacting services they provide. The acknowledgement clarifies accountability. PCI DSS v4.0 Requirement 12.8.5 requires information to be maintained about which PCI DSS requirements are managed by each service provider and which are managed by the entity. This responsibility matrix helps prevent control gaps. Operational Evidence Evidence for Requirement 12 includes approved policies, annual review records, targeted risk analyses, scope validation worksheets, security awareness training records, acceptable use acknowledgements, technology review records, incident response exercises, service provider lists, written agreements, and responsibility matrices."
+    },
+    {
+      "chunk_id": "req-12-security-program#fs-256-15-0000",
+      "text": "PCI DSS Requirement 12: Support Information Security with Organizational Policies and Programs Scope and Intent Requirement 12 addresses the governance practices that make technical controls sustainable. It includes policies, risk management, roles and responsibilities, security awareness, incident response, service provider management, and targeted risk analyses used by other PCI DSS requirements. Security Policy and Risk Program Policies should describe management intent and operational responsibilities. Risk management should be active enough to keep policies, procedures, and control frequencies aligned with the environment rather than frozen in outdated assumptions. PCI DSS v4.0 Requirement 12.1.1 requires an overall information security policy to be established, published, maintained, and disseminated to relevant personnel and vendors. The policy must address the protection of account data. PCI DSS v4.0 Requirement 12.1.2 requires the information security policy to be reviewed at least once every 12 months and updated when the environment changes. The review keeps policy content aligned with current risks and operations. PCI DSS v4.0 Requirement 12.3.1 requires each targeted risk analysis to document the assets being protected, the threat being addressed, factors contributing to likelihood and impact, the resulting analysis, and how often the control will be performed. Targeted risk analyses are used where PCI DSS allows an entity-defined frequency. Roles, Awareness, and Personnel Responsibilities People must know the security responsibilities that apply to their roles. Awareness programs should reinforce secure handling of account data and the importance of reporting suspected incidents. PCI DSS v4.0 Requirement 12.4.1 requires executive management to establish responsibility for protecting account data and for a PCI DSS"
+    },
+    {
+      "chunk_id": "req-03-protect-stored-data#fs-256-15-0000",
+      "text": "PCI DSS Requirement 3: Protect Stored Account Data Scope and Intent Requirement 3 covers stored account data, including storage minimization, rendering stored PAN unreadable, cryptographic key management, and restrictions on sensitive authentication data. The requirement expects entities to understand where account data is stored and to reduce both the amount and exposure of that data. Data Retention and Storage Minimization Stored account data should exist only where there is a legitimate business or legal reason. Retention practices must define what is stored, why it is stored, where it is stored, and when it is securely deleted. Unknown repositories, old exports, and forgotten reports create avoidable risk. PCI DSS v4.0 Requirement 3.2.1 requires account data storage to be kept to the minimum needed for legal, regulatory, or business reasons. The entity must define retention requirements and securely delete account data when it is no longer needed. PCI DSS v4.0 Requirement 3.2.2 requires sensitive authentication data not to be stored after authorization, even if the data is encrypted. This includes full track data, card verification codes or values, and PIN or PIN block data. PCI DSS v4.0 Requirement 3.2.3 requires stored sensitive authentication data before authorization to be encrypted with strong cryptography. The data must be securely deleted after authorization is complete. Masking and Display of PAN Displaying a full PAN should be rare and justified by a role-based business need. Masking controls reduce casual exposure in screens, reports, logs, dashboards, and support tools. Truncation and masking are not the same as strong storage protection, but they are"
+    },
+    {
+      "chunk_id": "req-01-network-security-controls#fs-256-15-0003",
+      "text": "data systems. PCI DSS v4.0 Requirement 1.4.4 requires system components that store cardholder data not to be directly accessible from untrusted networks. The intent is to prevent Internet-originated connections from reaching stored account data repositories. Administration and Anti-Spoofing Network security controls are themselves sensitive systems. Administrative access to them should be secured, and traffic that appears to use forged or private source addresses should be blocked when it enters from an untrusted side. PCI DSS v4.0 Requirement 1.2.6 requires security features to be defined and implemented for insecure services, protocols, or ports that are allowed. The compensating security features must be appropriate to the risk of the allowed traffic. PCI DSS v4.0 Requirement 1.4.3 requires anti-spoofing measures to detect and block forged source IP addresses from entering the network. This includes blocking traffic from untrusted networks that claims to originate from internal or otherwise unauthorized addresses. PCI DSS v4.0 Requirement 1.5.1 requires security policies and operational procedures for Requirement 1 to be documented, kept current, used, and known to affected personnel. Operational knowledge matters because network controls must be maintained over time. Operational Evidence Good evidence for Requirement 1 includes approved rule requests, current diagrams, configuration exports, change tickets, periodic review records, and examples showing that denied traffic is actually blocked. The strongest evidence ties each permitted path to a business owner and a current technical need."
+    }
+  ],
+  "retrieved_context_sha256": "b10c3f7f3a58886c03b359de9411d79c71294368005e7c5702bbb72612dae8af",
+  "system_answer": "Not found in knowledge base",
+  "trace": {
+    "citations": [
+      {
+        "retrievedReferences": [
+          {
+            "content": {
+              "text": "PCI DSS Requirement 1: Network Security Controls Scope and Intent Requirement 1 addresses how an entity designs, implements, and maintains network security controls that protect the cardholder data environment from untrusted networks and unnecessary traffic. These controls include firewalls, router rules, cloud security groups, host-based filtering, and other technologies that enforce network traffic restrictions. The purpose is not merely to install a firewall; the entity must know what traffic is allowed, why it is allowed, where it is documented, and how changes are controlled. Roles, Documentation, and Rule Management Network security control standards must define how controls are configured, maintained, and reviewed for all connections into and out of the cardholder data environment. The standards should identify responsible personnel, permitted services, secure management methods, and the evidence needed to show that rule sets are intentional rather than accidental. PCI DSS v4.0 Requirement 1.2.1 expects configuration standards for network security controls to be defined, implemented, and maintained. The standards must support consistent rule management across firewalls, routers, virtual network controls, and other technologies used to restrict traffic. PCI DSS v4.0 Requirement 1.2.5 requires all allowed services, protocols, and ports to be identified, approved, and tied to a defined business need. If an insecure service, protocol, or port is used, the entity must implement security features that reduce the risk of that use. PCI DSS v4.0 Requirement 1.2.7 requires reviews of network security control configurations at least once every six months. The review should confirm that rules remain justified, documented, and aligned with current business and security needs."
+            },
+            "location": {
+              "s3Location": {
+                "uri": "s3://corpus/req-01-network-security-controls.txt"
+              }
+            }
+          },
+          {
+            "content": {
+              "text": "Requirement 12.8.1 requires a list of all third-party service providers with which account data is shared or that could affect the security of account data to be maintained. The list supports governance of outsourced services. PCI DSS v4.0 Requirement 12.8.2 requires written agreements with service providers that include an acknowledgement of the provider's responsibility for the security of account data or the security-impacting services they provide. The acknowledgement clarifies accountability. PCI DSS v4.0 Requirement 12.8.5 requires information to be maintained about which PCI DSS requirements are managed by each service provider and which are managed by the entity. This responsibility matrix helps prevent control gaps. Operational Evidence Evidence for Requirement 12 includes approved policies, annual review records, targeted risk analyses, scope validation worksheets, security awareness training records, acceptable use acknowledgements, technology review records, incident response exercises, service provider lists, written agreements, and responsibility matrices."
+            },
+            "location": {
+              "s3Location": {
+                "uri": "s3://corpus/req-12-security-program.txt"
+              }
+            }
+          },
+          {
+            "content": {
+              "text": "PCI DSS Requirement 12: Support Information Security with Organizational Policies and Programs Scope and Intent Requirement 12 addresses the governance practices that make technical controls sustainable. It includes policies, risk management, roles and responsibilities, security awareness, incident response, service provider management, and targeted risk analyses used by other PCI DSS requirements. Security Policy and Risk Program Policies should describe management intent and operational responsibilities. Risk management should be active enough to keep policies, procedures, and control frequencies aligned with the environment rather than frozen in outdated assumptions. PCI DSS v4.0 Requirement 12.1.1 requires an overall information security policy to be established, published, maintained, and disseminated to relevant personnel and vendors. The policy must address the protection of account data. PCI DSS v4.0 Requirement 12.1.2 requires the information security policy to be reviewed at least once every 12 months and updated when the environment changes. The review keeps policy content aligned with current risks and operations. PCI DSS v4.0 Requirement 12.3.1 requires each targeted risk analysis to document the assets being protected, the threat being addressed, factors contributing to likelihood and impact, the resulting analysis, and how often the control will be performed. Targeted risk analyses are used where PCI DSS allows an entity-defined frequency. Roles, Awareness, and Personnel Responsibilities People must know the security responsibilities that apply to their roles. Awareness programs should reinforce secure handling of account data and the importance of reporting suspected incidents. PCI DSS v4.0 Requirement 12.4.1 requires executive management to establish responsibility for protecting account data and for a PCI DSS"
+            },
+            "location": {
+              "s3Location": {
+                "uri": "s3://corpus/req-12-security-program.txt"
+              }
+            }
+          },
+          {
+            "content": {
+              "text": "PCI DSS Requirement 3: Protect Stored Account Data Scope and Intent Requirement 3 covers stored account data, including storage minimization, rendering stored PAN unreadable, cryptographic key management, and restrictions on sensitive authentication data. The requirement expects entities to understand where account data is stored and to reduce both the amount and exposure of that data. Data Retention and Storage Minimization Stored account data should exist only where there is a legitimate business or legal reason. Retention practices must define what is stored, why it is stored, where it is stored, and when it is securely deleted. Unknown repositories, old exports, and forgotten reports create avoidable risk. PCI DSS v4.0 Requirement 3.2.1 requires account data storage to be kept to the minimum needed for legal, regulatory, or business reasons. The entity must define retention requirements and securely delete account data when it is no longer needed. PCI DSS v4.0 Requirement 3.2.2 requires sensitive authentication data not to be stored after authorization, even if the data is encrypted. This includes full track data, card verification codes or values, and PIN or PIN block data. PCI DSS v4.0 Requirement 3.2.3 requires stored sensitive authentication data before authorization to be encrypted with strong cryptography. The data must be securely deleted after authorization is complete. Masking and Display of PAN Displaying a full PAN should be rare and justified by a role-based business need. Masking controls reduce casual exposure in screens, reports, logs, dashboards, and support tools. Truncation and masking are not the same as strong storage protection, but they are"
+            },
+            "location": {
+              "s3Location": {
+                "uri": "s3://corpus/req-03-protect-stored-data.txt"
+              }
+            }
+          },
+          {
+            "content": {
+              "text": "data systems. PCI DSS v4.0 Requirement 1.4.4 requires system components that store cardholder data not to be directly accessible from untrusted networks. The intent is to prevent Internet-originated connections from reaching stored account data repositories. Administration and Anti-Spoofing Network security controls are themselves sensitive systems. Administrative access to them should be secured, and traffic that appears to use forged or private source addresses should be blocked when it enters from an untrusted side. PCI DSS v4.0 Requirement 1.2.6 requires security features to be defined and implemented for insecure services, protocols, or ports that are allowed. The compensating security features must be appropriate to the risk of the allowed traffic. PCI DSS v4.0 Requirement 1.4.3 requires anti-spoofing measures to detect and block forged source IP addresses from entering the network. This includes blocking traffic from untrusted networks that claims to originate from internal or otherwise unauthorized addresses. PCI DSS v4.0 Requirement 1.5.1 requires security policies and operational procedures for Requirement 1 to be documented, kept current, used, and known to affected personnel. Operational knowledge matters because network controls must be maintained over time. Operational Evidence Good evidence for Requirement 1 includes approved rule requests, current diagrams, configuration exports, change tickets, periodic review records, and examples showing that denied traffic is actually blocked. The strongest evidence ties each permitted path to a business owner and a current technical need."
+            },
+            "location": {
+              "s3Location": {
+                "uri": "s3://corpus/req-01-network-security-controls.txt"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "prompt_sha256": "b496e4049454855175c8cf0e06e48be744a5574b7436798547d341b50cb4a9ea",
+  "rubric_sha256": "9d73765a3dab4aa005c57edf82fdb101650c9b90819c7185ea3cd722289d2d8f",
+  "model_id": "codex-cli",
+  "harness_version": "1",
+  "recorded_at_commit": "78d928045415fd6ce199fb8a216f6f95120c83bf"
+}

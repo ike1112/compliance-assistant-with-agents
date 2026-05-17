@@ -1,0 +1,11 @@
+{
+  "model_id": "codex-cli",
+  "harness_version": "1",
+  "judge_prompt_sha256": "b496e4049454855175c8cf0e06e48be744a5574b7436798547d341b50cb4a9ea",
+  "judge_rubric_sha256": "9d73765a3dab4aa005c57edf82fdb101650c9b90819c7185ea3cd722289d2d8f",
+  "deploy_configs": [
+    "FIXED_SIZE-512-20",
+    "FIXED_SIZE-256-15"
+  ],
+  "k": 5
+}

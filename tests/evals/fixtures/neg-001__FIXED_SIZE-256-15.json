@@ -1,0 +1,97 @@
+{
+  "kind": "negative",
+  "item_id": "neg-001",
+  "chunking_config": {
+    "strategy": "FIXED_SIZE",
+    "max_tokens": 256,
+    "overlap_pct": 15
+  },
+  "question": "What are HIPAA Security Rule requirements for audit controls on electronic protected health information?",
+  "retrieved_context": [
+    {
+      "chunk_id": "req-01-network-security-controls#fs-256-15-0000",
+      "text": "PCI DSS Requirement 1: Network Security Controls Scope and Intent Requirement 1 addresses how an entity designs, implements, and maintains network security controls that protect the cardholder data environment from untrusted networks and unnecessary traffic. These controls include firewalls, router rules, cloud security groups, host-based filtering, and other technologies that enforce network traffic restrictions. The purpose is not merely to install a firewall; the entity must know what traffic is allowed, why it is allowed, where it is documented, and how changes are controlled. Roles, Documentation, and Rule Management Network security control standards must define how controls are configured, maintained, and reviewed for all connections into and out of the cardholder data environment. The standards should identify responsible personnel, permitted services, secure management methods, and the evidence needed to show that rule sets are intentional rather than accidental. PCI DSS v4.0 Requirement 1.2.1 expects configuration standards for network security controls to be defined, implemented, and maintained. The standards must support consistent rule management across firewalls, routers, virtual network controls, and other technologies used to restrict traffic. PCI DSS v4.0 Requirement 1.2.5 requires all allowed services, protocols, and ports to be identified, approved, and tied to a defined business need. If an insecure service, protocol, or port is used, the entity must implement security features that reduce the risk of that use. PCI DSS v4.0 Requirement 1.2.7 requires reviews of network security control configurations at least once every six months. The review should confirm that rules remain justified, documented, and aligned with current business and security needs."
+    },
+    {
+      "chunk_id": "req-12-security-program#fs-256-15-0000",
+      "text": "PCI DSS Requirement 12: Support Information Security with Organizational Policies and Programs Scope and Intent Requirement 12 addresses the governance practices that make technical controls sustainable. It includes policies, risk management, roles and responsibilities, security awareness, incident response, service provider management, and targeted risk analyses used by other PCI DSS requirements. Security Policy and Risk Program Policies should describe management intent and operational responsibilities. Risk management should be active enough to keep policies, procedures, and control frequencies aligned with the environment rather than frozen in outdated assumptions. PCI DSS v4.0 Requirement 12.1.1 requires an overall information security policy to be established, published, maintained, and disseminated to relevant personnel and vendors. The policy must address the protection of account data. PCI DSS v4.0 Requirement 12.1.2 requires the information security policy to be reviewed at least once every 12 months and updated when the environment changes. The review keeps policy content aligned with current risks and operations. PCI DSS v4.0 Requirement 12.3.1 requires each targeted risk analysis to document the assets being protected, the threat being addressed, factors contributing to likelihood and impact, the resulting analysis, and how often the control will be performed. Targeted risk analyses are used where PCI DSS allows an entity-defined frequency. Roles, Awareness, and Personnel Responsibilities People must know the security responsibilities that apply to their roles. Awareness programs should reinforce secure handling of account data and the importance of reporting suspected incidents. PCI DSS v4.0 Requirement 12.4.1 requires executive management to establish responsibility for protecting account data and for a PCI DSS"
+    },
+    {
+      "chunk_id": "req-10-logging-monitoring#fs-256-15-0000",
+      "text": "PCI DSS Requirement 10: Log and Monitor All Access to System Components and Cardholder Data Scope and Intent Requirement 10 ensures that activity in the cardholder data environment can be reconstructed and monitored. Logs support incident detection, investigation, and accountability. Logging must cover users, administrators, system events, security events, and access to cardholder data. Audit Log Coverage Audit logs should capture enough detail to show who did what, when it happened, whether it succeeded, and where it occurred. The requirement is not satisfied by collecting logs without meaningful fields or by logging only a narrow subset of in-scope systems. PCI DSS v4.0 Requirement 10.2.1 requires audit logs to be enabled and active for all system components and cardholder data. The logs must capture events needed to support anomaly detection and forensic analysis. PCI DSS v4.0 Requirement 10.2.1.1 requires audit logs to capture all individual user access to cardholder data. This supports accountability when stored or processed cardholder data is viewed or used. PCI DSS v4.0 Requirement 10.2.1.2 requires audit logs to capture all actions taken by any individual with administrative access. Administrative actions are high impact and must be traceable. Event Detail A log event without enough context may be useless during an investigation. Required fields should allow investigators to correlate events across systems and distinguish one user, component, or event from another. PCI DSS v4.0 Requirement 10.2.2 requires audit log entries to include user identification, type of event, date and time, success or failure indication, event origination, and the identity or name of affected data,"
+    },
+    {
+      "chunk_id": "req-12-security-program#fs-256-15-0003",
+      "text": "Requirement 12.8.1 requires a list of all third-party service providers with which account data is shared or that could affect the security of account data to be maintained. The list supports governance of outsourced services. PCI DSS v4.0 Requirement 12.8.2 requires written agreements with service providers that include an acknowledgement of the provider's responsibility for the security of account data or the security-impacting services they provide. The acknowledgement clarifies accountability. PCI DSS v4.0 Requirement 12.8.5 requires information to be maintained about which PCI DSS requirements are managed by each service provider and which are managed by the entity. This responsibility matrix helps prevent control gaps. Operational Evidence Evidence for Requirement 12 includes approved policies, annual review records, targeted risk analyses, scope validation worksheets, security awareness training records, acceptable use acknowledgements, technology review records, incident response exercises, service provider lists, written agreements, and responsibility matrices."
+    },
+    {
+      "chunk_id": "req-10-logging-monitoring#fs-256-15-0002",
+      "text": "server or other media that is difficult to modify. Log Review and Alert Handling Log review should focus on systems and events most likely to show compromise or control failure. Automated alerting can help, but the entity must still define what is reviewed, how often it is reviewed, and how anomalies are handled. PCI DSS v4.0 Requirement 10.4.1 requires daily review of audit logs for security events, logs of system components that store, process, or transmit cardholder data or sensitive authentication data, logs of critical system components, and logs of servers and system components that perform security functions. PCI DSS v4.0 Requirement 10.4.2 requires logs of all other system components to be reviewed periodically. The review frequency must be appropriate to the risk of the systems and events. PCI DSS v4.0 Requirement 10.4.3 requires exceptions and anomalies identified during log review to be addressed. Review without follow-up does not satisfy the purpose of the control. Retention and Time Synchronization Investigations often require historical logs. If logs are missing, overwritten, or stored with inconsistent timestamps, incident response becomes slower and less reliable. Retention and time synchronization therefore support both monitoring and forensic reconstruction. PCI DSS v4.0 Requirement 10.5.1 requires audit log history to be retained for at least 12 months, with at least the most recent three months immediately available for analysis. Older logs may be archived if they can be retrieved when needed. PCI DSS v4.0 Requirement 10.6.1 requires system clocks and time to be synchronized using time-synchronization technology. Consistent time settings allow events from different"
+    }
+  ],
+  "retrieved_context_sha256": "4980a6ecfd32658e5c509764e262f48ccc18e9dd52264b81c60f1596e0a2dbb6",
+  "system_answer": "Not found in knowledge base",
+  "trace": {
+    "citations": [
+      {
+        "retrievedReferences": [
+          {
+            "content": {
+              "text": "PCI DSS Requirement 1: Network Security Controls Scope and Intent Requirement 1 addresses how an entity designs, implements, and maintains network security controls that protect the cardholder data environment from untrusted networks and unnecessary traffic. These controls include firewalls, router rules, cloud security groups, host-based filtering, and other technologies that enforce network traffic restrictions. The purpose is not merely to install a firewall; the entity must know what traffic is allowed, why it is allowed, where it is documented, and how changes are controlled. Roles, Documentation, and Rule Management Network security control standards must define how controls are configured, maintained, and reviewed for all connections into and out of the cardholder data environment. The standards should identify responsible personnel, permitted services, secure management methods, and the evidence needed to show that rule sets are intentional rather than accidental. PCI DSS v4.0 Requirement 1.2.1 expects configuration standards for network security controls to be defined, implemented, and maintained. The standards must support consistent rule management across firewalls, routers, virtual network controls, and other technologies used to restrict traffic. PCI DSS v4.0 Requirement 1.2.5 requires all allowed services, protocols, and ports to be identified, approved, and tied to a defined business need. If an insecure service, protocol, or port is used, the entity must implement security features that reduce the risk of that use. PCI DSS v4.0 Requirement 1.2.7 requires reviews of network security control configurations at least once every six months. The review should confirm that rules remain justified, documented, and aligned with current business and security needs."
+            },
+            "location": {
+              "s3Location": {
+                "uri": "s3://corpus/req-01-network-security-controls.txt"
+              }
+            }
+          },
+          {
+            "content": {
+              "text": "PCI DSS Requirement 12: Support Information Security with Organizational Policies and Programs Scope and Intent Requirement 12 addresses the governance practices that make technical controls sustainable. It includes policies, risk management, roles and responsibilities, security awareness, incident response, service provider management, and targeted risk analyses used by other PCI DSS requirements. Security Policy and Risk Program Policies should describe management intent and operational responsibilities. Risk management should be active enough to keep policies, procedures, and control frequencies aligned with the environment rather than frozen in outdated assumptions. PCI DSS v4.0 Requirement 12.1.1 requires an overall information security policy to be established, published, maintained, and disseminated to relevant personnel and vendors. The policy must address the protection of account data. PCI DSS v4.0 Requirement 12.1.2 requires the information security policy to be reviewed at least once every 12 months and updated when the environment changes. The review keeps policy content aligned with current risks and operations. PCI DSS v4.0 Requirement 12.3.1 requires each targeted risk analysis to document the assets being protected, the threat being addressed, factors contributing to likelihood and impact, the resulting analysis, and how often the control will be performed. Targeted risk analyses are used where PCI DSS allows an entity-defined frequency. Roles, Awareness, and Personnel Responsibilities People must know the security responsibilities that apply to their roles. Awareness programs should reinforce secure handling of account data and the importance of reporting suspected incidents. PCI DSS v4.0 Requirement 12.4.1 requires executive management to establish responsibility for protecting account data and for a PCI DSS"
+            },
+            "location": {
+              "s3Location": {
+                "uri": "s3://corpus/req-12-security-program.txt"
+              }
+            }
+          },
+          {
+            "content": {
+              "text": "PCI DSS Requirement 10: Log and Monitor All Access to System Components and Cardholder Data Scope and Intent Requirement 10 ensures that activity in the cardholder data environment can be reconstructed and monitored. Logs support incident detection, investigation, and accountability. Logging must cover users, administrators, system events, security events, and access to cardholder data. Audit Log Coverage Audit logs should capture enough detail to show who did what, when it happened, whether it succeeded, and where it occurred. The requirement is not satisfied by collecting logs without meaningful fields or by logging only a narrow subset of in-scope systems. PCI DSS v4.0 Requirement 10.2.1 requires audit logs to be enabled and active for all system components and cardholder data. The logs must capture events needed to support anomaly detection and forensic analysis. PCI DSS v4.0 Requirement 10.2.1.1 requires audit logs to capture all individual user access to cardholder data. This supports accountability when stored or processed cardholder data is viewed or used. PCI DSS v4.0 Requirement 10.2.1.2 requires audit logs to capture all actions taken by any individual with administrative access. Administrative actions are high impact and must be traceable. Event Detail A log event without enough context may be useless during an investigation. Required fields should allow investigators to correlate events across systems and distinguish one user, component, or event from another. PCI DSS v4.0 Requirement 10.2.2 requires audit log entries to include user identification, type of event, date and time, success or failure indication, event origination, and the identity or name of affected data,"
+            },
+            "location": {
+              "s3Location": {
+                "uri": "s3://corpus/req-10-logging-monitoring.txt"
+              }
+            }
+          },
+          {
+            "content": {
+              "text": "Requirement 12.8.1 requires a list of all third-party service providers with which account data is shared or that could affect the security of account data to be maintained. The list supports governance of outsourced services. PCI DSS v4.0 Requirement 12.8.2 requires written agreements with service providers that include an acknowledgement of the provider's responsibility for the security of account data or the security-impacting services they provide. The acknowledgement clarifies accountability. PCI DSS v4.0 Requirement 12.8.5 requires information to be maintained about which PCI DSS requirements are managed by each service provider and which are managed by the entity. This responsibility matrix helps prevent control gaps. Operational Evidence Evidence for Requirement 12 includes approved policies, annual review records, targeted risk analyses, scope validation worksheets, security awareness training records, acceptable use acknowledgements, technology review records, incident response exercises, service provider lists, written agreements, and responsibility matrices."
+            },
+            "location": {
+              "s3Location": {
+                "uri": "s3://corpus/req-12-security-program.txt"
+              }
+            }
+          },
+          {
+            "content": {
+              "text": "server or other media that is difficult to modify. Log Review and Alert Handling Log review should focus on systems and events most likely to show compromise or control failure. Automated alerting can help, but the entity must still define what is reviewed, how often it is reviewed, and how anomalies are handled. PCI DSS v4.0 Requirement 10.4.1 requires daily review of audit logs for security events, logs of system components that store, process, or transmit cardholder data or sensitive authentication data, logs of critical system components, and logs of servers and system components that perform security functions. PCI DSS v4.0 Requirement 10.4.2 requires logs of all other system components to be reviewed periodically. The review frequency must be appropriate to the risk of the systems and events. PCI DSS v4.0 Requirement 10.4.3 requires exceptions and anomalies identified during log review to be addressed. Review without follow-up does not satisfy the purpose of the control. Retention and Time Synchronization Investigations often require historical logs. If logs are missing, overwritten, or stored with inconsistent timestamps, incident response becomes slower and less reliable. Retention and time synchronization therefore support both monitoring and forensic reconstruction. PCI DSS v4.0 Requirement 10.5.1 requires audit log history to be retained for at least 12 months, with at least the most recent three months immediately available for analysis. Older logs may be archived if they can be retrieved when needed. PCI DSS v4.0 Requirement 10.6.1 requires system clocks and time to be synchronized using time-synchronization technology. Consistent time settings allow events from different"
+            },
+            "location": {
+              "s3Location": {
+                "uri": "s3://corpus/req-10-logging-monitoring.txt"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "prompt_sha256": "b496e4049454855175c8cf0e06e48be744a5574b7436798547d341b50cb4a9ea",
+  "rubric_sha256": "9d73765a3dab4aa005c57edf82fdb101650c9b90819c7185ea3cd722289d2d8f",
+  "model_id": "codex-cli",
+  "harness_version": "1",
+  "recorded_at_commit": "78d928045415fd6ce199fb8a216f6f95120c83bf"
+}

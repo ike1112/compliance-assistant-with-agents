@@ -1,0 +1,97 @@
+{
+  "kind": "negative",
+  "item_id": "neg-009",
+  "chunking_config": {
+    "strategy": "FIXED_SIZE",
+    "max_tokens": 256,
+    "overlap_pct": 15
+  },
+  "question": "What FFIEC Cybersecurity Assessment Tool maturity level applies to mobile banking authentication?",
+  "retrieved_context": [
+    {
+      "chunk_id": "req-07-08-access-and-authentication#fs-256-15-0003",
+      "text": "Authentication Multi-factor authentication is a major control for reducing account takeover risk. It is required for all access into the cardholder data environment and for administrative access. MFA mechanisms should be resistant to replay and should not allow one factor to compromise another. PCI DSS v4.0 Requirement 8.4.1 requires multi-factor authentication for all non-console administrative access into the cardholder data environment. This applies to administrative access from outside or inside the entity network. PCI DSS v4.0 Requirement 8.4.2 requires multi-factor authentication for all access into the cardholder data environment. The control is broader than remote access and applies to all users accessing the cardholder data environment. PCI DSS v4.0 Requirement 8.4.3 requires multi-factor authentication for all remote network access originating from outside the entity network that could access or impact the cardholder data environment. This includes access by personnel, contractors, and vendors. Operational Evidence Evidence for Requirements 7 and 8 includes access control matrices, approvals, periodic access reviews, privileged access listings, account inventories, identity provider settings, lockout configurations, MFA enforcement policies, deprovisioning records, and exceptions for shared accounts."
+    },
+    {
+      "chunk_id": "req-07-08-access-and-authentication#fs-256-15-0002",
+      "text": "PCI DSS v4.0 Requirement 8.2.2 requires group, shared, or generic accounts and other shared authentication credentials to be used only when necessary on an exception basis. Their use must be approved, documented, and managed to preserve accountability. PCI DSS v4.0 Requirement 8.2.6 requires inactive user accounts to be removed or disabled within 90 days of inactivity. This reduces the opportunity for dormant accounts to be misused. Authentication Factors and Password Controls Authentication controls should resist guessing, reuse, and brute-force attacks. Password or passphrase rules must be paired with lockout, change, and reset processes that protect accounts without creating unnecessary operational risk. PCI DSS v4.0 Requirement 8.3.6 requires passwords and passphrases used as authentication factors to meet defined complexity and length parameters. The parameters must make authentication secrets resistant to guessing. PCI DSS v4.0 Requirement 8.3.9 requires passwords or passphrases to be changed at least once every 90 days, or for access to resources to be dynamically analyzed to determine whether accounts remain secure. The requirement applies when passwords or passphrases are used as the only authentication factor. PCI DSS v4.0 Requirement 8.3.4 requires invalid authentication attempts to be limited by locking out the user ID after not more than 10 attempts. The lockout must last at least 30 minutes or until an administrator enables the user ID. Multi-Factor Authentication Multi-factor authentication is a major control for reducing account takeover risk. It is required for all access into the cardholder data environment and for administrative access. MFA mechanisms should be resistant to replay and should not allow"
+    },
+    {
+      "chunk_id": "req-01-network-security-controls#fs-256-15-0001",
+      "text": "of that use. PCI DSS v4.0 Requirement 1.2.7 requires reviews of network security control configurations at least once every six months. The review should confirm that rules remain justified, documented, and aligned with current business and security needs. Network Diagrams and Data Flow Diagrams An assessor or engineer should be able to understand how cardholder data moves without reverse-engineering the environment from device configurations. Diagrams help show boundaries, segmentation points, connections to third parties, wireless networks, and data flows that can change the scope of the assessment. PCI DSS v4.0 Requirement 1.2.3 requires an accurate network diagram showing connections between the cardholder data environment and other networks, including wireless networks. The diagram must be kept current so it remains useful for scope and control validation. PCI DSS v4.0 Requirement 1.2.4 requires a current data-flow diagram showing movement of account data across systems and networks. The diagram should identify where account data enters, is processed, is stored, and leaves the environment. Inbound and Outbound Traffic Traffic restrictions should be explicit. Only traffic needed for business or technical operations should be allowed, and all other traffic should be denied. This applies to inbound traffic from untrusted networks and outbound traffic from sensitive systems. PCI DSS v4.0 Requirement 1.3.1 requires inbound traffic to the cardholder data environment to be restricted to traffic that is necessary and specifically authorized. The requirement supports a default-deny model for inbound connectivity. PCI DSS v4.0 Requirement 1.3.2 requires outbound traffic from the cardholder data environment to be restricted to traffic that is necessary and"
+    },
+    {
+      "chunk_id": "req-03-protect-stored-data#fs-256-15-0000",
+      "text": "PCI DSS Requirement 3: Protect Stored Account Data Scope and Intent Requirement 3 covers stored account data, including storage minimization, rendering stored PAN unreadable, cryptographic key management, and restrictions on sensitive authentication data. The requirement expects entities to understand where account data is stored and to reduce both the amount and exposure of that data. Data Retention and Storage Minimization Stored account data should exist only where there is a legitimate business or legal reason. Retention practices must define what is stored, why it is stored, where it is stored, and when it is securely deleted. Unknown repositories, old exports, and forgotten reports create avoidable risk. PCI DSS v4.0 Requirement 3.2.1 requires account data storage to be kept to the minimum needed for legal, regulatory, or business reasons. The entity must define retention requirements and securely delete account data when it is no longer needed. PCI DSS v4.0 Requirement 3.2.2 requires sensitive authentication data not to be stored after authorization, even if the data is encrypted. This includes full track data, card verification codes or values, and PIN or PIN block data. PCI DSS v4.0 Requirement 3.2.3 requires stored sensitive authentication data before authorization to be encrypted with strong cryptography. The data must be securely deleted after authorization is complete. Masking and Display of PAN Displaying a full PAN should be rare and justified by a role-based business need. Masking controls reduce casual exposure in screens, reports, logs, dashboards, and support tools. Truncation and masking are not the same as strong storage protection, but they are"
+    },
+    {
+      "chunk_id": "req-10-logging-monitoring#fs-256-15-0001",
+      "text": "component, or event from another. PCI DSS v4.0 Requirement 10.2.2 requires audit log entries to include user identification, type of event, date and time, success or failure indication, event origination, and the identity or name of affected data, system component, resource, or service. PCI DSS v4.0 Requirement 10.2.1.5 requires audit logs to capture all changes to identification and authentication credentials, including creation of new accounts and elevation of privileges. These events help detect unauthorized account manipulation. PCI DSS v4.0 Requirement 10.2.1.7 requires audit logs to capture creation and deletion of system-level objects. Such events can indicate unauthorized changes to operating systems, databases, or applications. Log Protection Logs are valuable only if they can be trusted. Attackers often try to erase or alter logs after gaining access. Access to logs should be restricted, and changes should be detected or prevented. PCI DSS v4.0 Requirement 10.3.1 requires read access to audit logs to be limited to those with a job-related need. Log access should not be broadly available. PCI DSS v4.0 Requirement 10.3.2 requires audit log files to be protected from unauthorized modifications. The entity must prevent or detect changes that could undermine log integrity. PCI DSS v4.0 Requirement 10.3.3 requires audit log files, including those for external-facing technologies, to be promptly backed up to a secure, centralized, internal log server or other media that is difficult to modify. Log Review and Alert Handling Log review should focus on systems and events most likely to show compromise or control failure. Automated alerting can help, but the entity must"
+    }
+  ],
+  "retrieved_context_sha256": "dbfa0f8bce5f3d38012ce5c90af8696fa8fd935336c4c87b07e9d89bcd18545b",
+  "system_answer": "Not found in knowledge base",
+  "trace": {
+    "citations": [
+      {
+        "retrievedReferences": [
+          {
+            "content": {
+              "text": "Authentication Multi-factor authentication is a major control for reducing account takeover risk. It is required for all access into the cardholder data environment and for administrative access. MFA mechanisms should be resistant to replay and should not allow one factor to compromise another. PCI DSS v4.0 Requirement 8.4.1 requires multi-factor authentication for all non-console administrative access into the cardholder data environment. This applies to administrative access from outside or inside the entity network. PCI DSS v4.0 Requirement 8.4.2 requires multi-factor authentication for all access into the cardholder data environment. The control is broader than remote access and applies to all users accessing the cardholder data environment. PCI DSS v4.0 Requirement 8.4.3 requires multi-factor authentication for all remote network access originating from outside the entity network that could access or impact the cardholder data environment. This includes access by personnel, contractors, and vendors. Operational Evidence Evidence for Requirements 7 and 8 includes access control matrices, approvals, periodic access reviews, privileged access listings, account inventories, identity provider settings, lockout configurations, MFA enforcement policies, deprovisioning records, and exceptions for shared accounts."
+            },
+            "location": {
+              "s3Location": {
+                "uri": "s3://corpus/req-07-08-access-and-authentication.txt"
+              }
+            }
+          },
+          {
+            "content": {
+              "text": "PCI DSS v4.0 Requirement 8.2.2 requires group, shared, or generic accounts and other shared authentication credentials to be used only when necessary on an exception basis. Their use must be approved, documented, and managed to preserve accountability. PCI DSS v4.0 Requirement 8.2.6 requires inactive user accounts to be removed or disabled within 90 days of inactivity. This reduces the opportunity for dormant accounts to be misused. Authentication Factors and Password Controls Authentication controls should resist guessing, reuse, and brute-force attacks. Password or passphrase rules must be paired with lockout, change, and reset processes that protect accounts without creating unnecessary operational risk. PCI DSS v4.0 Requirement 8.3.6 requires passwords and passphrases used as authentication factors to meet defined complexity and length parameters. The parameters must make authentication secrets resistant to guessing. PCI DSS v4.0 Requirement 8.3.9 requires passwords or passphrases to be changed at least once every 90 days, or for access to resources to be dynamically analyzed to determine whether accounts remain secure. The requirement applies when passwords or passphrases are used as the only authentication factor. PCI DSS v4.0 Requirement 8.3.4 requires invalid authentication attempts to be limited by locking out the user ID after not more than 10 attempts. The lockout must last at least 30 minutes or until an administrator enables the user ID. Multi-Factor Authentication Multi-factor authentication is a major control for reducing account takeover risk. It is required for all access into the cardholder data environment and for administrative access. MFA mechanisms should be resistant to replay and should not allow"
+            },
+            "location": {
+              "s3Location": {
+                "uri": "s3://corpus/req-07-08-access-and-authentication.txt"
+              }
+            }
+          },
+          {
+            "content": {
+              "text": "of that use. PCI DSS v4.0 Requirement 1.2.7 requires reviews of network security control configurations at least once every six months. The review should confirm that rules remain justified, documented, and aligned with current business and security needs. Network Diagrams and Data Flow Diagrams An assessor or engineer should be able to understand how cardholder data moves without reverse-engineering the environment from device configurations. Diagrams help show boundaries, segmentation points, connections to third parties, wireless networks, and data flows that can change the scope of the assessment. PCI DSS v4.0 Requirement 1.2.3 requires an accurate network diagram showing connections between the cardholder data environment and other networks, including wireless networks. The diagram must be kept current so it remains useful for scope and control validation. PCI DSS v4.0 Requirement 1.2.4 requires a current data-flow diagram showing movement of account data across systems and networks. The diagram should identify where account data enters, is processed, is stored, and leaves the environment. Inbound and Outbound Traffic Traffic restrictions should be explicit. Only traffic needed for business or technical operations should be allowed, and all other traffic should be denied. This applies to inbound traffic from untrusted networks and outbound traffic from sensitive systems. PCI DSS v4.0 Requirement 1.3.1 requires inbound traffic to the cardholder data environment to be restricted to traffic that is necessary and specifically authorized. The requirement supports a default-deny model for inbound connectivity. PCI DSS v4.0 Requirement 1.3.2 requires outbound traffic from the cardholder data environment to be restricted to traffic that is necessary and"
+            },
+            "location": {
+              "s3Location": {
+                "uri": "s3://corpus/req-01-network-security-controls.txt"
+              }
+            }
+          },
+          {
+            "content": {
+              "text": "PCI DSS Requirement 3: Protect Stored Account Data Scope and Intent Requirement 3 covers stored account data, including storage minimization, rendering stored PAN unreadable, cryptographic key management, and restrictions on sensitive authentication data. The requirement expects entities to understand where account data is stored and to reduce both the amount and exposure of that data. Data Retention and Storage Minimization Stored account data should exist only where there is a legitimate business or legal reason. Retention practices must define what is stored, why it is stored, where it is stored, and when it is securely deleted. Unknown repositories, old exports, and forgotten reports create avoidable risk. PCI DSS v4.0 Requirement 3.2.1 requires account data storage to be kept to the minimum needed for legal, regulatory, or business reasons. The entity must define retention requirements and securely delete account data when it is no longer needed. PCI DSS v4.0 Requirement 3.2.2 requires sensitive authentication data not to be stored after authorization, even if the data is encrypted. This includes full track data, card verification codes or values, and PIN or PIN block data. PCI DSS v4.0 Requirement 3.2.3 requires stored sensitive authentication data before authorization to be encrypted with strong cryptography. The data must be securely deleted after authorization is complete. Masking and Display of PAN Displaying a full PAN should be rare and justified by a role-based business need. Masking controls reduce casual exposure in screens, reports, logs, dashboards, and support tools. Truncation and masking are not the same as strong storage protection, but they are"
+            },
+            "location": {
+              "s3Location": {
+                "uri": "s3://corpus/req-03-protect-stored-data.txt"
+              }
+            }
+          },
+          {
+            "content": {
+              "text": "component, or event from another. PCI DSS v4.0 Requirement 10.2.2 requires audit log entries to include user identification, type of event, date and time, success or failure indication, event origination, and the identity or name of affected data, system component, resource, or service. PCI DSS v4.0 Requirement 10.2.1.5 requires audit logs to capture all changes to identification and authentication credentials, including creation of new accounts and elevation of privileges. These events help detect unauthorized account manipulation. PCI DSS v4.0 Requirement 10.2.1.7 requires audit logs to capture creation and deletion of system-level objects. Such events can indicate unauthorized changes to operating systems, databases, or applications. Log Protection Logs are valuable only if they can be trusted. Attackers often try to erase or alter logs after gaining access. Access to logs should be restricted, and changes should be detected or prevented. PCI DSS v4.0 Requirement 10.3.1 requires read access to audit logs to be limited to those with a job-related need. Log access should not be broadly available. PCI DSS v4.0 Requirement 10.3.2 requires audit log files to be protected from unauthorized modifications. The entity must prevent or detect changes that could undermine log integrity. PCI DSS v4.0 Requirement 10.3.3 requires audit log files, including those for external-facing technologies, to be promptly backed up to a secure, centralized, internal log server or other media that is difficult to modify. Log Review and Alert Handling Log review should focus on systems and events most likely to show compromise or control failure. Automated alerting can help, but the entity must"
+            },
+            "location": {
+              "s3Location": {
+                "uri": "s3://corpus/req-10-logging-monitoring.txt"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "prompt_sha256": "b496e4049454855175c8cf0e06e48be744a5574b7436798547d341b50cb4a9ea",
+  "rubric_sha256": "9d73765a3dab4aa005c57edf82fdb101650c9b90819c7185ea3cd722289d2d8f",
+  "model_id": "codex-cli",
+  "harness_version": "1",
+  "recorded_at_commit": "78d928045415fd6ce199fb8a216f6f95120c83bf"
+}

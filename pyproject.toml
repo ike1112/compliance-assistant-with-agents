@@ -41,6 +41,10 @@ packages = ["src/compliance_assistant"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "infra/tests"]
+markers = [
+    "gate: deterministic offline RAG eval gate (no AWS spend)",
+    "live: opt-in; re-records raw fixtures via the real model",
+]
 
 [tool.crewai]
 type = "crew"
