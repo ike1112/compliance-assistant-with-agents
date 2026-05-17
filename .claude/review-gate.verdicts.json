@@ -3,36 +3,36 @@
     "name": "codex",
     "passed": false,
     "severity": "MAJOR",
-    "summary": "REVISE: F-001 async pre-start race (busy keyed off thread.is_alive not locked state -> 2nd /invocations gets 2nd 202; ping can read Healthy for accepted run); F-002 grant_put/bucket grant over-broad (s3 LegalHold/Retention/VersionTagging/Abort* + kms:Decrypt beyond upload path). F-003 MINOR cfn-lint repro command mismatch. synth ok, 31 infra tests pass, no src/tests-evals change, sole identity wildcard = ecr:GetAuthorizationToken."
+    "summary": "Round 2 REVISE. Round-1 F-001/F-002/B1/F-003 all verified RESOLVED with file:line. New MAJOR F-004: ECR repo created in the same stack as the AgentCore Runtime that references its image -> clean-account bootstrap cycle; README deploy --all includes the runtime before image push + RAG gate (gate bypass + first-deploy failure). Recommend: separate ECR stack w/ deterministic name, runtime imports it, runbook ordered (infra->gate->push->runtime)."
   },
   {
     "name": "test_integrity",
-    "passed": false,
-    "severity": "MAJOR",
-    "summary": "mutation: phase 4 owner-exempt (rationale printed, exit 0) - threaded server.py is mutmut-hostile (hung 95 min on Windows). coverage: changed-line 88% < 0.90 floor (FAIL) - app.py wiring runs only in synth subprocess; server.py _Handler/serve/__main__ untested. Coverage FAIL is the objective-leg miss."
+    "passed": true,
+    "severity": null,
+    "summary": "mutation: phase owner-exempt (rationale printed, exit 0). coverage: changed-line 96% >= 0.90 floor (diff-cover vs base 95efaf9 exit 0). LEG B PASS."
   },
   {
     "name": "security",
     "passed": true,
-    "severity": "MINOR",
-    "summary": "agent-skills:security-auditor PASS, 0 BLOCKER/0 MAJOR. IAM least-privilege verified (sole literal Resource:* = ecr:GetAuthorizationToken, isolated, test-guarded; confused-deputy conditions; no cloudwatch/xray). Report bucket KMS+versioned+TLS+block-public+access-logged+RETAIN. No new deps. 2 MINOR (status repr(exc) disclosure; access-logs SSE-S3) sample-acceptable."
+    "severity": null,
+    "summary": "agent-skills:security-auditor PASS, severity null. Round-1 /status disclosure MINOR RESOLVED (class+message to caller, full repr only to container log). Report-write grant verified explicit least-privilege at source AND synthesized template: s3:PutObject reports/* + kms GenerateDataKey/Encrypt only, no Decrypt/LegalHold/Retention/Abort*; sole identity Resource:* = ecr:GetAuthorizationToken; confused-deputy conditions; bucket KMS+versioned+TLS+block-public+access-logged+RETAIN. No new dep/secret. No findings."
   },
   {
     "name": "code",
     "passed": false,
     "severity": "MAJOR",
-    "summary": "agent-skills:code-reviewer: code/architecture clean (async contract, conditional-report, import safety, IAM, deploy ordering all correct; 31 tests pass; verbatim CHECK fidelity) BUT a hard blocking policy finding: the judged-window commit subjects use 'phase 4 (...)' roadmap-label jargon the user's global CLAUDE.md forbids in commit messages and says reviewers must treat as blocking. Confirms the 88% coverage gap is a legitimate finding (HTTP handler/serve + app.py wiring untested)."
+    "summary": "agent-skills:code-reviewer REQUEST CHANGES. Round-1 blocking commit-subject jargon RESOLVED (subjects clean, trees byte-identical to pre-reword - content unchanged). F-001/F-002/coverage remediations all verified sound and mutation-resistant. New MAJOR: the committed plan .claude/PRPs/plans/phase-agentcore-runtime-iac.plan.md uses Task 1..9 task-position-label headings + 4 back-refs (13) - the user global CLAUDE.md forbids Task-N in durable artefacts and says reviewers must treat as blocking; outranks the prp-plan skill template. Reword to intent-led headings."
   },
   {
     "name": "regression",
     "passed": true,
     "severity": null,
-    "summary": "Phase 4 PRD CHECK verbatim all green: cd infra && cdk synth --all -q exit 0 (3 stacks incl ComplianceRuntimeStack); pytest infra/tests 31 passed (AgentCore Runtime resource present + async contract); README decision+current-docs+Reasoning-Gate + RAG-eval-gate pre-deploy + deploy ordering greps match; cfn-lint region-scoped us-east-1 0 errors (E3006 catalog-lag for GA resource documented); no IAM Resource:* beyond justified (test-enforced). No src/ or tests/evals change."
+    "summary": "Phase PRD CHECK verbatim all green on window 95efaf9..HEAD: cdk synth --all -q exit 0 (3 stacks incl ComplianceRuntimeStack); pytest infra/tests 37 passed; cfn-lint -r us-east-1 0 errors (W3045 only, documented); README RAG-eval-gate pre-deploy + deploy-ordering present; no IAM Resource:* beyond justified (test-enforced). No src/ or tests/evals change."
   },
   {
     "name": "test_engineer",
     "passed": true,
     "severity": "MINOR",
-    "summary": "ADVISORY (non-blocking). Both new test files assert REAL, mutation-resistant behavior (non-blocking 202+HealthyBusy, no-grounding=success, failure surfaced, 409, exactly-one-wildcard, differential lifetime, out-of-range ValueError, no-NAT). 3 genuine correctness gaps worth adding: REPORT_BUCKET-unset->failed, S3-upload-raises->failed, direct add_dependency synth test. http.client handler test is optional coverage-cleanup. SSM grep assertion is mutation-soft - tighten."
+    "summary": "ADVISORY (non-blocking) PASS. All 3 round-1 advisory gaps + the mutation-soft SSM assertion addressed; new tests mutation-verified genuine (test_no_pre_start_race fails the OLD is_alive logic; socket test asserts status/body/404/drain; failure-path tests assert grounded=False not silent success). Remaining ~4% miss is app.py synth-only + serve()/__main__, accepted. 2 tiny optional adds: POST-unknown 404; completed->new-run transition."
   }
 ]

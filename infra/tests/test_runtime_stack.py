@@ -15,12 +15,22 @@ from stacks.runtime_stack import (
     ComplianceRuntimeStack,
     _MAX_LIFETIME_CEIL,
 )
+from stacks.runtime_ecr_stack import ComplianceRuntimeEcrStack
+
+
+def _runtime(app: cdk.App) -> ComplianceRuntimeStack:
+    # The ECR repo lives in its own stack (deployed first so the image
+    # is pushable before the runtime is created against it); the runtime
+    # stack imports it by reference.
+    ecr_stack = ComplianceRuntimeEcrStack(app, "TestRtEcr")
+    return ComplianceRuntimeStack(
+        app, "TestRt", ecr_repository=ecr_stack.repository
+    )
 
 
 def _template(context: dict | None = None) -> Template:
     app = cdk.App(context=context or {})
-    stack = ComplianceRuntimeStack(app, "TestRt")
-    return Template.from_stack(stack)
+    return Template.from_stack(_runtime(app))
 
 
 def _iam_statements(t: Template) -> list[dict]:
@@ -71,8 +81,11 @@ def test_out_of_range_max_lifetime_is_rejected():
     # Mirrors test_kb_stack's context->ValueError guard: an out-of-range
     # value must fail synth, not synthesize a value the service rejects.
     app = cdk.App(context={"runtimeMaxLifetimeSeconds": 30})
+    ecr_stack = ComplianceRuntimeEcrStack(app, "TestRtBadEcr")
     with pytest.raises(ValueError, match="out of range"):
-        ComplianceRuntimeStack(app, "TestRtBadLifetime")
+        ComplianceRuntimeStack(
+            app, "TestRtBadLifetime", ecr_repository=ecr_stack.repository
+        )
 
 
 def test_report_bucket_versioned_kms_blockpublic():
@@ -196,11 +209,12 @@ def test_report_write_grant_is_least_privilege():
     )
 
 
-def test_app_wires_three_stacks_and_runtime_depends_on_agent():
-    # The deploy-ordering invariant: the crew resolves agent ids from
-    # SSM at container start, so the runtime stack MUST deploy after the
-    # agent stack. Asserted directly here because app.py runs only in
-    # the cdk-synth subprocess (not visible to pytest coverage).
+def test_app_wires_stacks_and_runtime_deploy_ordering():
+    # Deploy-ordering invariants: the runtime is created against an ECR
+    # image (the repo stack must exist + the image be pushed first) and
+    # the crew resolves agent ids from SSM at container start (agent
+    # stack first). Asserted directly because app.py runs only in the
+    # cdk-synth subprocess (not visible to pytest coverage).
     import inspect
 
     from stacks.kb_stack import ComplianceKbStack
@@ -211,15 +225,27 @@ def test_app_wires_three_stacks_and_runtime_depends_on_agent():
     agent = ComplianceAgentStack(
         app, "ComplianceAgentStack", knowledge_base=kb.knowledge_base
     )
-    rt = ComplianceRuntimeStack(app, "ComplianceRuntimeStack")
-    rt.add_dependency(agent)
-    assert agent in rt.dependencies, (
-        "runtime stack must depend on the agent stack (SSM agent ids "
-        "must exist at container start)"
+    ecr_stack = ComplianceRuntimeEcrStack(app, "ComplianceRuntimeEcrStack")
+    rt = ComplianceRuntimeStack(
+        app, "ComplianceRuntimeStack",
+        ecr_repository=ecr_stack.repository,
     )
-    # The ctor must NOT carry an unused knowledge_base arg (the crew
+    rt.add_dependency(ecr_stack)
+    rt.add_dependency(agent)
+    assert ecr_stack in rt.dependencies, (
+        "runtime must depend on the ECR stack (image pushable first)"
+    )
+    assert agent in rt.dependencies, (
+        "runtime must depend on the agent stack (SSM agent ids at "
+        "container start)"
+    )
+    # The ctor takes the ECR repo (a real, used cross-stack ref) and
+    # must still NOT carry an unused knowledge_base arg (the crew
     # reaches the KB via bedrock:InvokeAgent, not a cross-stack ref).
     params = inspect.signature(ComplianceRuntimeStack.__init__).parameters
+    assert "ecr_repository" in params, (
+        "ComplianceRuntimeStack must take the ecr_repository cross-stack ref"
+    )
     assert "knowledge_base" not in params, (
         "ComplianceRuntimeStack must not take an unused knowledge_base arg"
     )

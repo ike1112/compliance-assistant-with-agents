@@ -314,14 +314,14 @@ def _template() -> Template:
 
 ## Step-by-Step Tasks
 
-Execute in order. Each task is atomic and independently verifiable.
+Execute in order. Each step is atomic and independently verifiable.
 
-### Task 1: Verify the L1 construct is importable in the pinned CDK
+### Verify the L1 construct is importable in the pinned CDK
 - **ACTION**: Confirm `from aws_cdk import aws_bedrockagentcore` resolves.
 - **VALIDATE**: `cd infra && python -c "from aws_cdk import aws_bedrockagentcore as a; print(a.CfnRuntime)"` exits 0.
 - **GOTCHA**: If it fails, the venv has a pre-2.254 `aws-cdk-lib`; reinstall to the *already-pinned* range `pip install -U "aws-cdk-lib>=2.254.0,<3.0.0"` (not a pin change).
 
-### Task 2: CREATE `infra/runtime/__init__.py` + `infra/runtime/server.py` (ASYNC contract)
+### Create `infra/runtime/__init__.py` + `infra/runtime/server.py` (ASYNC contract)
 - **ACTION**: stdlib `http.server` app implementing the AgentCore async long-run contract:
   - Module-level thread-safe state: `_run = {"thread": None, "id": None, "error": None}` guarded by a `threading.Lock`.
   - `GET /ping` → `200 {"status": "HealthyBusy"}` if `_run["thread"]` is alive, else `200 {"status": "Healthy"}`. Must be cheap and never blocked by the run.
@@ -333,12 +333,12 @@ Execute in order. Each task is atomic and independently verifiable.
 - **GOTCHA**: AgentCore HTTP contract requires exactly port **8080**, paths `/ping` and `/invocations`; `@entrypoint`-equivalent must not block the ping thread (AWS runtime-long-run.html).
 - **VALIDATE**: `PYTHONPATH=src python -c "import infra.runtime.server"` exits 0.
 
-### Task 3: CREATE `infra/runtime/Dockerfile`
+### Create `infra/runtime/Dockerfile`
 - **ACTION**: `FROM --platform=linux/arm64 python:3.12-slim`; copy `src/` + `infra/runtime/`; `pip install .`; `EXPOSE 8080`; `CMD ["python","-m","infra.runtime.server"]`.
 - **GOTCHA**: AgentCore Runtime requires **linux/arm64** images — the literal `--platform=linux/arm64` token must be present (the test greps for it).
 - **VALIDATE**: file exists; `rg -n "linux/arm64" infra/runtime/Dockerfile` and `rg -n "EXPOSE 8080" infra/runtime/Dockerfile` both match.
 
-### Task 4: CREATE `infra/stacks/runtime_stack.py`
+### Create the runtime CDK stacks (`runtime_ecr_stack.py` + `runtime_stack.py`)
 - **ACTION**: `ComplianceRuntimeStack(cdk.Stack)` ctor `(self, scope, construct_id, *, knowledge_base, **kwargs)`.
 - **IMPLEMENT** (mirror kb_stack ordering & `R-<NAME>` comment style):
   - `R-RT-KEY` KMS key (rotation on, RETAIN).
@@ -361,17 +361,17 @@ Execute in order. Each task is atomic and independently verifiable.
 - **GOTCHA**: `agent_runtime_name` regex `^[a-zA-Z][a-zA-Z0-9_]{0,47}$` — underscores only, no hyphens (`compliance_assistant_runtime`).
 - **VALIDATE**: `cd infra && python -c "import app"` exits 0.
 
-### Task 5: UPDATE `infra/app.py`
+### Update `infra/app.py` wiring
 - **ACTION**: Import + instantiate after the agent stack; capture the agent stack in a variable; `rt = ComplianceRuntimeStack(app, "ComplianceRuntimeStack", env=env, knowledge_base=kb_stack.knowledge_base)`; `rt.add_dependency(agent_stack)` (SSM agent-id params must exist at container start — agent_ids.py resolves via SSM).
 - **MIRROR**: `infra/app.py:33-41`; extend the module docstring (now three stacks; runtime deploys after the agent stack; blast-radius note).
 - **VALIDATE**: `cd infra && npx aws-cdk@latest synth --all -q` exits 0 and emits a third template; the runtime template `DependsOn`/stack-dependency reflects the agent stack.
 
-### Task 6: UPDATE `infra/cdk.json`
+### Update `infra/cdk.json` context
 - **ACTION**: Add `"runtimeMaxLifetimeSeconds": 28800` and `"agentRuntimeImageTag": "latest"` to `context`.
 - **GOTCHA**: valid JSON, no trailing comma; do not touch the Phase 3 chunking keys.
 - **VALIDATE**: `python -c "import json,pathlib;json.loads(pathlib.Path('infra/cdk.json').read_text())"` exits 0.
 
-### Task 7: CREATE `infra/tests/test_runtime_stack.py`
+### Create `infra/tests/test_runtime_stack.py`
 - **ACTION**: `Template.from_stack` assertions (mirror test_kb_stack / test_agent_stack):
   - `resource_count_is("AWS::BedrockAgentCore::Runtime", 1)`.
   - `has_resource_properties(... Match.object_like({"ProtocolConfiguration":"HTTP","NetworkConfiguration":{"NetworkMode":"PUBLIC"}}))`.
@@ -383,7 +383,7 @@ Execute in order. Each task is atomic and independently verifiable.
   - **Wildcard rule (F-003, not a rubber stamp)**: collect every runtime-role statement whose `Resource == "*"`; assert that set has exactly one statement AND its `Action` set is exactly `{"ecr:GetAuthorizationToken"}`. Any other literal `"*"` (e.g. a stray `cloudwatch:PutMetricData`) fails the test.
 - **VALIDATE**: `PYTHONPATH=src python -m pytest infra/tests/test_runtime_stack.py -q` all pass.
 
-### Task 8: CREATE `infra/tests/test_runtime_server.py` (offline, async contract)
+### Create `infra/tests/test_runtime_server.py` (offline, async contract)
 - **ACTION**: Drive the handler in-process (no real socket/AWS):
   - `monkeypatch` `compliance_assistant.main.run` to a fake that writes temp `output/*.md`; stub `boto3` S3 client (fake `upload_file`).
   - **Non-blocking**: `POST /invocations` returns `202` quickly even when the fake `run` sleeps briefly; assert `/ping` reports `HealthyBusy` while the thread is alive and flips to `Healthy` after it joins; assert `run` invoked exactly once and `upload_file` called for each produced artifact.
@@ -392,7 +392,7 @@ Execute in order. Each task is atomic and independently verifiable.
   - Second `POST /invocations` while one is in flight → `409`.
 - **VALIDATE**: `PYTHONPATH=src python -m pytest infra/tests/test_runtime_server.py -q` all pass.
 
-### Task 9: UPDATE `infra/README.md`
+### Update `infra/README.md`
 - **ACTION**: Add **"AgentCore Runtime hosting decision (current-docs verified, 2026-05)"**:
   - **Decision**: AgentCore Runtime (`AWS::BedrockAgentCore::Runtime`) over ECS Fargate.
   - **Current-docs verification** (dated, with the AWS doc URLs): AgentCore GA 2025-10; CloudFormation support 2025-09; L1 `aws_cdk.aws_bedrockagentcore.CfnRuntime` in pinned `aws-cdk-lib>=2.254.0`; **synchronous invocations are bounded (~15 min) — long runs MUST use the documented async pattern (background work + `HealthyBusy` ping), which is supported up to `MaxLifetime` 28800s (8h)**; serverless scale-to-zero (consumption billing, microVM terminated post-session). Conclusion: **AgentCore IaC is mature and async-suitable → not the Fargate fallback.**
@@ -483,11 +483,11 @@ branch of CHECK 4) and no other literal wildcard.
 ## Risks and Mitigations
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| Synchronous invocation killed at ~15 min (the original design flaw) | — | — | RESOLVED: shim uses the AWS-documented async pattern (bg thread + `HealthyBusy` ping); `/invocations` returns immediately; Task 8 asserts non-blocking + busy-state |
-| Hosted crew cannot call the Bedrock Agent | — | — | RESOLVED: role grants scoped `bedrock:InvokeAgent` on `agent-alias/*`; Task 7 regression-guards it; deploy ordering documented + `add_dependency` |
+| Synchronous invocation killed at ~15 min (the original design flaw) | — | — | RESOLVED: shim uses the AWS-documented async pattern (bg thread + `HealthyBusy` ping); `/invocations` returns immediately; the offline async-contract test asserts non-blocking + busy-state |
+| Hosted crew cannot call the Bedrock Agent | — | — | RESOLVED: role grants scoped `bedrock:InvokeAgent` on `agent-alias/*`; the synth-contract test regression-guards it; deploy ordering documented + `add_dependency` |
 | `cloudwatch:PutMetricData` forces a 2nd `Resource:"*"`, breaking the no-wildcard CHECK | — | — | RESOLVED: dropped (Phase 5 observability). Only `ecr:GetAuthorizationToken` wildcard remains; test asserts exactly that set |
-| Valid no-grounding run treated as infra failure | — | — | RESOLVED: shim uploads existing artifacts and returns success with `grounded=false`; Task 8 covers it |
-| `aws_bedrockagentcore` missing if venv has pre-2.254 `aws-cdk-lib` | MED | HIGH | Task 1 verifies import first; fix is reinstalling to the *already-pinned* range |
+| Valid no-grounding run treated as infra failure | — | — | RESOLVED: shim uploads existing artifacts and returns success with `grounded=false`; the offline async-contract test covers it |
+| `aws_bedrockagentcore` missing if venv has pre-2.254 `aws-cdk-lib` | MED | HIGH | the import-check step verifies it first; fix is reinstalling to the *already-pinned* range |
 | `DockerImageAsset` would force a Docker build in synth | MED | HIGH | Explicitly NOT building: `ecr.Repository` + context tag; build/push is HUMAN-GATE |
 | cfn-guard cannot stream the runtime template in-loop (as already true for the KB stack) | MED | LOW | PRD allows "or justified"; reuse the established README Reasoning-Gate justification at the KB-exception depth + cfn-lint(0) + targeted synth IAM/security assertions; full cfn-guard at operator pre-deploy |
 | Runtime deployed before the agent stack → every invocation fails (no synth signal) | MED | MED | `rt.add_dependency(agent_stack)` enforces order; runbook states it explicitly |

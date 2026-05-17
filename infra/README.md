@@ -14,9 +14,13 @@ citations part of §3.4.
   RDS Data API), Knowledge Base, S3 data source, ingestion Lambda.
 - `stacks/agent_stack.py` — `ComplianceAgentStack`: Guardrail (+pinned
   version), Agent (KB-associated), alias, SSM parameters.
+- `stacks/runtime_ecr_stack.py` — `ComplianceRuntimeEcrStack`: just the
+  crew-image ECR repo (deterministic name), deployed first so the
+  image can be pushed before the runtime is created against it.
 - `stacks/runtime_stack.py` — `ComplianceRuntimeStack`: AgentCore
-  Runtime host for the crew, versioned KMS report bucket, ECR repo,
-  least-privilege execution role. Deploys after the agent stack.
+  Runtime host for the crew, versioned KMS report bucket,
+  least-privilege execution role. Imports the ECR repo; deploys after
+  the ECR and agent stacks.
 - `runtime/` — the linux/arm64 container artifact: `server.py` is the
   AgentCore HTTP service-contract shim (async pattern); `Dockerfile`
   is built/pushed by the operator at the HUMAN-GATE.
@@ -183,8 +187,12 @@ npx --yes aws-cdk@latest synth --all -q
 #   then check ComplianceKbStack.template.json + ComplianceAgentStack.template.json
 #   with the aws-iac compliance check; resolve or justify findings here.
 
-# deploy
-cd infra && npx --yes aws-cdk@latest deploy --all --require-approval any-change
+# deploy the infrastructure stacks ONLY — never `--all` (that would
+# include ComplianceRuntimeStack and bypass its required pre-deploy
+# RAG gate + image push; see the runtime section below).
+cd infra && npx --yes aws-cdk@latest deploy \
+  ComplianceKbStack ComplianceAgentStack ComplianceRuntimeEcrStack \
+  --require-approval any-change
 ```
 
 ### Runtime stack deploy (OPERATOR-GATED — billable, after the above)
@@ -196,20 +204,32 @@ deployed. The runtime hosts the same crew the eval harness scores;
 shipping a runtime whose grounding/citation quality has not passed the
 gate is not permitted.
 
-**Deploy ordering:** `ComplianceAgentStack` MUST be deployed before
-`ComplianceRuntimeStack` — the crew resolves the Bedrock agent ids from
-SSM (`/compliance-assistant/agent-id`, `-alias-id`) at container start,
-and those parameters are published by the agent stack. `app.py` encodes
-this with `runtime_stack.add_dependency(agent_stack)`.
+**Deploy ordering (the runtime stack is never bulk-deployed):**
+`ComplianceRuntimeEcrStack` and `ComplianceAgentStack` MUST both be
+deployed before `ComplianceRuntimeStack`. The image repository is in
+its own stack on purpose: a runtime created against a not-yet-pushed
+image fails, so the operator must push the image *between* creating
+the repo and creating the runtime. The crew also resolves the Bedrock
+agent ids from SSM (`/compliance-assistant/agent-id`, `-alias-id`,
+published by the agent stack) at container start. `app.py` encodes
+both orderings with `runtime_stack.add_dependency(...)` on the ECR and
+agent stacks, and the runtime stack is excluded from the bulk
+infrastructure deploy above so it cannot skip the gate.
 
 ```
-# 0. gate: pytest tests/evals -m gate            # MUST be green
-# 1. build + push the linux/arm64 crew image to the stack's ECR repo
-ECR_URI=$(aws cloudformation describe-stacks --stack-name ComplianceRuntimeStack \
-  --query "Stacks[0].Outputs[?OutputKey=='RuntimeRepoUri'].OutputValue" --output text)
+# 0. infra stacks (incl. ComplianceRuntimeEcrStack) deployed above.
+# 1. gate — MUST be green on the deploying commit:
+PYTHONPATH=src python -m pytest tests/evals -m gate
+# 2. build + push the linux/arm64 crew image. The repo name is
+#    deterministic (compliance-assistant-runtime), so the target is
+#    knowable without reading any stack output:
+ACCT=$(aws sts get-caller-identity --query Account --output text)
+ECR_URI="${ACCT}.dkr.ecr.us-east-1.amazonaws.com/compliance-assistant-runtime"
+aws ecr get-login-password --region us-east-1 \
+  | docker login --username AWS --password-stdin "${ACCT}.dkr.ecr.us-east-1.amazonaws.com"
 docker buildx build --platform linux/arm64 -f infra/runtime/Dockerfile \
   -t "$ECR_URI:<tag>" --push .
-# 2. set the tag and deploy the runtime stack (agent stack first)
+# 3. only now create the runtime against the pushed image:
 cd infra && npx --yes aws-cdk@latest deploy ComplianceRuntimeStack \
   -c agentRuntimeImageTag=<tag> --require-approval any-change
 ```

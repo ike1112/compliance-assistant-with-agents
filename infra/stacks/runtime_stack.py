@@ -18,7 +18,6 @@ offline. See infra/README.md for the AgentCore-vs-Fargate decision.
 import aws_cdk as cdk
 from aws_cdk import (
     aws_bedrockagentcore as agentcore,
-    aws_ecr as ecr,
     aws_iam as iam,
     aws_kms as kms,
     aws_s3 as s3,
@@ -35,16 +34,27 @@ _RUNTIME_NAME = "compliance_assistant_runtime"
 
 
 class ComplianceRuntimeStack(cdk.Stack):
-    """AgentCore Runtime host + its versioned report bucket and ECR repo.
+    """AgentCore Runtime host + its versioned report bucket.
 
-    Deliberately takes no cross-stack reference: the crew reaches the
-    Knowledge Base through the deployed Bedrock Agent (InvokeAgent),
-    which the execution role is scoped to by ARN pattern — so this stack
-    does not need (and must not carry an unused) `knowledge_base` arg.
-    Deploy ordering after the agent stack is enforced in app.py.
+    Takes the ECR repository by reference (a real, used cross-stack arg)
+    from `ComplianceRuntimeEcrStack`. The repo lives in its own stack
+    so the operator can push the linux/arm64 image *before* this stack
+    creates the `AWS::BedrockAgentCore::Runtime` — a runtime created
+    against a not-yet-pushed image fails. It does NOT take a
+    `knowledge_base` arg: the crew reaches the Knowledge Base through
+    the deployed Bedrock Agent (InvokeAgent), scoped by ARN pattern.
+    Deploy ordering (ECR + agent before this stack) is enforced in
+    app.py and spelled out in the README runbook.
     """
 
-    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
+    def __init__(
+        self,
+        scope: Construct,
+        construct_id: str,
+        *,
+        ecr_repository,
+        **kwargs,
+    ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         # R-RT-KEY. Customer-managed key for the report bucket. Rotation
@@ -90,17 +100,10 @@ class ComplianceRuntimeStack(cdk.Stack):
             removal_policy=cdk.RemovalPolicy.RETAIN,
         )
 
-        # R-RT-ECR. The operator builds the linux/arm64 crew image
-        # (infra/runtime/Dockerfile) and pushes it here at the
-        # HUMAN-GATE. Immutable tags so a deployed runtime's image
-        # provenance can't be silently overwritten; scan on push.
-        self.repo = ecr.Repository(
-            self,
-            "RuntimeRepo",
-            image_scan_on_push=True,
-            image_tag_mutability=ecr.TagMutability.IMMUTABLE,
-            removal_policy=cdk.RemovalPolicy.RETAIN,
-        )
+        # The crew image repository lives in ComplianceRuntimeEcrStack
+        # (deployed first) so the operator can push the linux/arm64
+        # image before this stack creates the runtime against it.
+        self.repo = ecr_repository
         image_tag = self.node.try_get_context("agentRuntimeImageTag") or "latest"
 
         # R-RT-ROLE. The role AgentCore Runtime assumes to run the crew.
@@ -298,7 +301,4 @@ class ComplianceRuntimeStack(cdk.Stack):
         )
         cdk.CfnOutput(
             self, "ReportBucketName", value=self.report_bucket.bucket_name
-        )
-        cdk.CfnOutput(
-            self, "RuntimeRepoUri", value=self.repo.repository_uri
         )

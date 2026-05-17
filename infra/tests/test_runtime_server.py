@@ -209,6 +209,9 @@ def test_handler_routes_over_a_real_socket(_isolate, monkeypatch):
         assert json.loads(r.read())["run_id"]
         c.request("GET", "/nope")
         assert c.getresponse().status == 404
+        # POST to an unknown path → 404 (do_POST else arm).
+        c.request("POST", "/nope", body="{}")
+        assert c.getresponse().status == 404
         c.close()
         _join()
     finally:
@@ -261,3 +264,22 @@ def test_s3_upload_error_is_failed_not_silent_success(_isolate, monkeypatch):
     assert st["grounded"] is False
     assert "s3 put exploded" in st["error"]
     assert boom.calls >= 1
+
+
+def test_completed_run_allows_a_fresh_invocation(_isolate, monkeypatch):
+    # After a run completes, busy state must clear: /ping back to
+    # Healthy and a new /invocations accepted (state transitions out of
+    # "running"). The 409 test only covers reject-while-running.
+    monkeypatch.setattr(server, "_run_crew", lambda: _write("1-requirements.md"))
+
+    code1, body1 = server.start_invocation()
+    assert code1 == 202
+    _join()
+    assert server.status()["state"] == "completed"
+    assert server.ping() == {"status": "Healthy"}
+
+    code2, body2 = server.start_invocation()
+    assert code2 == 202, "a fresh run must be accepted after completion"
+    assert body2["run_id"] != body1["run_id"]
+    _join()
+    assert server.status()["state"] == "completed"
