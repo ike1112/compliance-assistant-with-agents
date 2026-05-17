@@ -75,6 +75,14 @@ def _cmd_mutation(repo: Path, phase: str) -> int:
     cfg_p, _, _, _ = _paths(repo)
     cfg = load_config(cfg_p)
     pc = cfg.phases.get(phase)
+    if pc is not None and pc.mutation_exempt:
+        # Owner-declared exemption in the integrity-protected bar file
+        # (with a rationale). Not a silent skip: it is visible in the
+        # judged diff and is an owner act. The phase's objective bar is
+        # then its synth/contract tests + changed-line coverage.
+        print(f"phase {phase} mutation-exempt (owner): "
+              f"{pc.mutation_exempt_reason}")
+        return OK
     if pc is None or not pc.pure_logic_paths:
         print(f"no pure-logic paths declared for phase {phase}",
               file=sys.stderr)
@@ -86,13 +94,20 @@ def _cmd_mutation(repo: Path, phase: str) -> int:
     # its unstable wall time trips mutmut's "10x baseline" guard so every
     # mutant is killed as a timeout and nothing is scored. Derive the
     # per-module test file by the project's tests/test_<stem>.py
-    # convention; fall back to all of tests/ only if it is absent.
-    test_targets: list[str] = []
-    for pl in pc.pure_logic_paths:
-        cand = repo / "tests" / f"test_{Path(pl).stem}.py"
-        test_targets.append(
-            f"tests/test_{Path(pl).stem}.py" if cand.exists() else "tests"
-        )
+    # convention; fall back to all of tests/ only if it is absent. A
+    # phase whose pure-logic module lives outside the src layout (an
+    # infra-layout module) declares its kill-surface test(s) explicitly
+    # via pure_logic_tests so discovery does not fall back to the wrong,
+    # non-importing suite.
+    if pc.pure_logic_tests:
+        test_targets = list(pc.pure_logic_tests)
+    else:
+        test_targets = []
+        for pl in pc.pure_logic_paths:
+            cand = repo / "tests" / f"test_{Path(pl).stem}.py"
+            test_targets.append(
+                f"tests/test_{Path(pl).stem}.py" if cand.exists() else "tests"
+            )
     runner = "python -m pytest -x -q " + " ".join(sorted(set(test_targets)))
     result = run_mutation(repo, pc.pure_logic_paths, runner=runner)
     floor = pc.mutation_bar(cfg.mutation_floor)

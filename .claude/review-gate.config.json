@@ -12,6 +12,12 @@
       "pure_logic_paths": ["src/compliance_assistant/citations.py"],
       "frozen_fixture_paths": ["tests/evals/gold/", "tests/evals/gold/PROVENANCE.md"]
     },
+    "4": {
+      "pure_logic_paths": [],
+      "frozen_fixture_paths": [],
+      "mutation_exempt": true,
+      "mutation_exempt_reason": "Phase 4's only pure-logic module is infra/runtime/server.py, a THREADED AgentCore async service-contract shim. mutmut is hostile to it on this host: a mutant that breaks thread termination deadlocks the test subprocess and mutmut 2.5.1's per-mutant timeout does not reap a hung child pytest on Windows (observed: a single run hung 95 min, never scored). This is the same 'wrong instrument for this code' class as phase 2's agent_ids.py, escalated to a hard hang. Phase 4's objective bar is instead: the synth-contract assertions (infra/tests/test_runtime_stack.py - AgentCore Runtime resource shape, no-wildcard IAM, scoped bedrock:InvokeAgent, report-bucket hardening, no NAT) + the offline async-contract test (infra/tests/test_runtime_server.py - non-blocking /invocations, HealthyBusy ping, no-grounding=success, failure surfaced) + changed-line coverage, all run as the panel's regression + coverage legs. Owner decision, 2026-05-17 - see gate run records."
+    },
     "5": {
       "pure_logic_paths": ["src/compliance_assistant/citations.py"],
       "frozen_fixture_paths": []
