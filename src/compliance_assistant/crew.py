@@ -129,7 +129,12 @@ class ComplianceAssistant():
 		# attaching it never changes the run's output (same contract as
 		# CREW_VERBOSE).
 		from compliance_assistant.tracing import build_tracer
-		_tracer = build_tracer()
+		# Stashed on the instance so the entry point (main.run, via
+		# tracing.run_with_tracing) can call finalize() on the real run
+		# boundary and emit the SLO metrics. Reused if crew() is called
+		# more than once on the same instance.
+		if getattr(self, "_tracer", None) is None:
+			self._tracer = build_tracer()
 
 		return Crew(
 			# self.agents and self.tasks are filled in automatically by
@@ -141,6 +146,6 @@ class ComplianceAssistant():
 			# is truthy; quiet by default. Output is unchanged either way.
 			verbose=_VERBOSE,
 			max_rpm=10,
-			step_callback=_tracer.on_step,
-			task_callback=_tracer.on_task,
+			step_callback=self._tracer.on_step,
+			task_callback=self._tracer.on_task,
 		)

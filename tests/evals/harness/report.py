@@ -198,10 +198,45 @@ def render_md(report: dict) -> str:
     return "\n".join(lines)
 
 
+def emit_quality_metrics(report: dict, env=None) -> dict | None:
+    """Publish the ComplianceAssistant/Quality SLO metrics as a
+    CloudWatch EMF line, so the Quality alarms watch a real producer.
+
+    Opt-in via EVALS_EMIT_METRICS (default OFF) so the deterministic
+    offline gate never spuriously emits and scoring is unchanged — the
+    metrics are emitted by the live/refresh eval run, not the gate.
+    Uses the deploy-equivalent config's generation aggregate (the same
+    faithfulness/citation the Phase-3 bars use). Returns the emitted
+    EMF doc (or None when not emitting / no deploy-equivalent gen)."""
+    import os as _os
+
+    from compliance_assistant.tracing import build_quality_emf
+
+    env = env if env is not None else _os.environ
+    if env.get("EVALS_EMIT_METRICS", "").strip().lower() not in {
+        "1", "true", "yes", "on"
+    }:
+        return None
+    gen = next(
+        (c["generation"] for c in report.get("configs", [])
+         if c.get("deploy_equivalent") and c.get("generation")),
+        None,
+    )
+    if not gen:
+        return None
+    doc = build_quality_emf(
+        gen.get("faithfulness", 0.0),
+        gen.get("citation_correctness", 0.0),
+    )
+    print(json.dumps(doc, ensure_ascii=False))
+    return doc
+
+
 def write_reports(report: dict) -> None:
     REPORT_JSON.write_text(
         json.dumps(report, indent=2) + "\n", encoding="utf-8")
     REPORT_MD.write_text(render_md(report), encoding="utf-8")
+    emit_quality_metrics(report)
 
 
 def write_cdk_json(winner: dict) -> None:

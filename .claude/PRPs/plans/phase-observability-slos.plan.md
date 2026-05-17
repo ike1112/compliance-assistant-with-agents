@@ -375,7 +375,7 @@ data-delivery flags `false`.
 - [ ] redaction: Luhn PAN + email masked/absent on span path AND raw content never delivered on the Bedrock path; non-Luhn long IDs stay visible
 - [ ] cfn-lint 0 (region-scoped); cfn-guard COMPLIANT or README-justified; exactly one inline IAM `Resource:"*"` (the bedrock-logging op); provider managed policy == only `AWSLambdaBasicExecutionRole`, documented
 - [ ] prior suites green; no change under `agent_ids.py`/`citations.py`/`tests/evals/gold/`; `citations.py` mutation ≥0.80 unchanged; changed-line coverage ≥0.90
-- [ ] no live AWS spend; no new runtime dependency; no pipeline jargon in any durable artefact
+- [ ] no live AWS spend; no new runtime dependency; durable artefacts describe intent/outcome (no roadmap-position labels) per the user CLAUDE.md rule
 
 ## Completion Checklist
 - [ ] Every implementation item completed in order, each validated immediately

@@ -3,36 +3,36 @@
     "name": "codex",
     "passed": false,
     "severity": "MAJOR",
-    "summary": "REVISE. Dual-path redaction + IAM wildcard accounting verified resolved in source/tests/README/synth. MAJOR F-001: SLO alarm binding circular - no changed runtime/tracing code emits the ComplianceAssistant/Crew|Quality metrics the alarms watch; build_tracer is a passive sink. MINOR F-002: PAN regex lacks a right (?!\\d) boundary -> a Luhn-valid 13-19 prefix in a longer run partially masked."
+    "summary": "Round 2 REVISE. Callback-shape/redaction/comparator/tamper fixes verified. 3 MAJOR: F-001 finalize()/record() never called on a real crew run (Crew metrics not emitted in prod, alarms INSUFFICIENT_DATA); F-002 ComplianceAssistant/Quality SLO alarms (Faithfulness/CitationCorrectness) silently unbacked - no producer emits them; F-003 committed run_spans.json not proven produced by the exercised path (content != _drive(), stale version/commit). MINOR F-004: a plan line literally contains the banned phrase."
   },
   {
     "name": "test_integrity",
     "passed": true,
     "severity": null,
-    "summary": "mutation: citations.py (configured Phase-5 target, untouched by this phase) kill-rate 0.839 >= 0.80, restored clean. coverage: changed-line 100% (diff-cover vs base 0c6399d, exit 0) after the slo_contract fail-closed tests. LEG B PASS."
+    "summary": "mutation: citations.py (Phase-5 target, untouched) 0.839>=0.80, restored clean. coverage: changed-line 100% (diff-cover vs base 0c6399d). LEG B PASS."
   },
   {
     "name": "security",
     "passed": true,
     "severity": "MINOR",
-    "summary": "agent-skills:security-auditor PASS, 0 BLOCKER/0 MAJOR. Dual-path redaction sound on the span path (Luhn+boundary) and asserted by construction on the Bedrock path (4 *DataDeliveryEnabled:false verified in the synthesized Create payload); IAM least-privilege verified (sole inline bedrock-logging wildcard; only managed policy = CDK provider AWSLambdaBasicExecutionRole; delivery role scoped + confused-deputy). 2 MINOR: PAN regex misses .// separators; hash-binding is integrity not tamper-evidence (docstring over-claims). No secrets."
+    "summary": "agent-skills:security-auditor PASS, 0 BLOCKER/0 MAJOR. Round-1 MINORs RESOLVED (PAN ./ separators + right boundary; hash-binding now precise + test-proven). Bedrock raw-content delivery still false (synth-verified); EMF payload is numeric-only (no PII); IAM accounting unchanged+correct. 1 new MINOR: multi-separator/whitespace-run PAN (double space / newline) still evades the in-process redactor (defense-in-depth; Bedrock path independently disabled)."
   },
   {
     "name": "code",
     "passed": false,
     "severity": "MAJOR",
-    "summary": "agent-skills:code-reviewer REQUEST CHANGES. plan==PRD verbatim; owner CHECK-intent ruling implemented as a data contract; no jargon; scope clean; SLO<->alarm semantic binding + IAM accounting + Bedrock data-off all genuinely resolved & test-asserted. MAJOR: tracing.py _span_for cannot map real CrewAI 1.14.4 callback payloads (TaskOutput.agent is a role str; step has no .agent) -> zero spans on real shapes -> live recorder is a non-functional stub -> the committed fixture is hand-authored, so the resolved-BLOCKER 'fixture self-certifies' mitigation is unenforced in the build. MINOR: tautological email assertion in test_tracing.py."
+    "summary": "agent-skills:code-reviewer REQUEST CHANGES. Round-1 MAJOR RESOLVED (real CrewAI-1.x callback mapping; tamper test real; PAN/.email/comparator MINORs all fixed; EMF circularity broken). NEW MAJOR: the EMF producer (finalize/record) is dead code - never invoked by crew()/main.run() on a real run, so the SLO-Crew CHECK is test-met only. 2 MINOR: provenance docstring overclaims 'produced by the exercised path' (committed fixture content != _drive()); commit 0ee8431 subject contains 'gate round 1' (numbered review-round jargon, blocking-class per global CLAUDE.md)."
   },
   {
     "name": "regression",
     "passed": true,
     "severity": null,
-    "summary": "Phase 5 PRD CHECK verbatim all green on 0c6399d..HEAD: docs/SLOs.md exists w/ 11 numeric SLOs + 30d budgets + metric contracts; pytest tests/test_tracing.py passes (3 PRD-named spans, owner tool_calls semantics); pytest infra/tests asserts Bedrock model-invocation logging present + dashboard + alarm-count==SLO-count + per-alarm threshold==SLOs.md; redaction test (PAN/email masked, non-Luhn visible); cfn-lint -r us-east-1 0 errors (W3005 accepted); prior suites green (228->239 passed). No src(agent_ids/citations) or tests/evals/gold change."
+    "summary": "Phase 5 PRD CHECK verbatim all green on 0c6399d..HEAD: docs/SLOs.md 11 numeric SLOs+budgets+metric contracts; tests/test_tracing.py passes (real callback path, 3 PRD spans, owner tool_calls semantics, tamper-proof); pytest infra/tests asserts Bedrock logging + dashboard + alarm<->SLO semantic binding; redaction test (PAN ./ + boundary, email, non-Luhn visible); cfn-lint -r us-east-1 0 errors; prior suites green (247 passed). No agent_ids/citations/tests-evals-gold change."
   },
   {
     "name": "test_engineer",
     "passed": true,
-    "severity": "MINOR",
-    "summary": "ADVISORY (non-blocking) PASS. slo_contract/observability/redaction tests genuine & mutation-resistant. 3 gaps corroborating the MAJORs: (1) hash-binding NEVER test-proven - deleting verify()'s sha loop leaves suite green (gate-gaming vector); (2) entire live-recorder/callback path untested (100% coverage is a replay-path artifact); (3) comparator map gte/lte dark. Recommends a tamper test + callback unit test + comparator parametrization."
+    "severity": null,
+    "summary": "ADVISORY (non-blocking) - not re-run this round; round-1 advisory items (tamper test, callback unit test, comparator parametrization) all addressed in round-2 and verified by codex+code-reviewer. Mutation 0.839 remains the objective bar."
   }
 ]

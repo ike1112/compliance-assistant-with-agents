@@ -30,6 +30,16 @@ def test_pan_forms_and_email_are_masked():
     assert _EMAIL not in out and "[REDACTED-EMAIL]" in out
 
 
+def test_multi_separator_and_newline_pan_forms_are_masked():
+    # codex/security: a PAN split by a double space or a newline (more
+    # than one separator between groups) must still be caught.
+    for pan in ("4111  1111 1111 1111", "4111\n1111 1111 1111",
+                "4111 - 1111 . 1111 / 1111"):
+        out = redact(f"pan: {pan} .")
+        assert "[REDACTED-PAN]" in out
+        assert "4111" not in out.replace("[REDACTED-PAN]", "")
+
+
 def test_luhn_prefix_inside_a_longer_digit_run_is_not_partially_masked():
     # codex F-002: a Luhn-valid 16-digit prefix glued to more digits is
     # NOT a card; the right (?!\d) boundary must stop a partial

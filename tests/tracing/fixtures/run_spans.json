@@ -1,32 +1,32 @@
 {
   "recorder_version": "2",
-  "recorded_at_commit": "2d59cdd36454423e2945bc1261d60106ea4929bf",
+  "recorded_at_commit": "0ee84316002927a51f6b39660872330e57ad594b",
   "spans": [
     {
       "name": "researcher",
-      "input": "Identify PCI DSS requirements for the topic and cite sources.",
-      "output": "Requirement 1.2.7 and Requirement 8.3.6 apply; both grounded with citations.",
+      "input": "identify reqs",
+      "output": "Req 1.2.7 grounded",
       "tool_calls": [
         {
           "tool": "BedrockInvokeAgentTool",
-          "input": "PCI DSS requirements for the topic"
+          "input": "PCI DSS lookup"
         }
       ],
-      "sha256": "563edc1bc608c23e451e20864648fe22c0a7063c02f0212942598fcdec99f7ac"
+      "sha256": "b57a7d773e85c26530e659283a35fb1538d9c699d4144e064ddaffa1d17dd788"
     },
     {
       "name": "writer",
-      "input": "Turn the researcher's grounded findings into a full report.",
-      "output": "# Compliance Report\n\nReq 1.2.7 ... Req 8.3.6 ...\n\n## Sources\n- s3://corpus/pci-dss.txt",
+      "input": "write the report",
+      "output": "# Report\n## Sources\n- s3://corpus/x.txt",
       "tool_calls": [],
-      "sha256": "d9ab08000f0878bf03ac8ed704f132bc2bd262c5f19f00c874c03f10005f8f7f"
+      "sha256": "b98edcb2aab63c111db1a6fd99ad111a16372d36f051d27398d7753694e89dc3"
     },
     {
       "name": "designer",
-      "input": "Map each report requirement to an AWS implementation.",
-      "output": "Req 1.2.7 -> security groups; Req 8.3.6 -> IAM MFA.",
+      "input": "map to AWS",
+      "output": "Req 1.2.7 -> security groups",
       "tool_calls": [],
-      "sha256": "9476234de6a8d47cd56268244898e3b167fef94b473e137601262f5ddbdf1999"
+      "sha256": "f5092f844d199c2f4d179ec3bbf325a4bd24bace21b35e659ae0fffce2fe003a"
     }
   ]
 }

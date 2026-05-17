@@ -18,8 +18,11 @@ which exposes ``description``/``name``/``raw``/``summary``;
 therefore pulls a role string from a plain ``str`` or from any of
 those attributes (the bug the gate caught was assuming ``obj.role``),
 so the mapping works against the real shapes — exercised directly by
-``tests/test_tracing.py`` (no live crew needed) and the committed
-fixture is produced by that same exercised code path.
+``tests/test_tracing.py`` (no live crew needed). The committed
+``run_spans.json`` is regenerated verbatim from that test's
+``_drive()`` callback sequence; a test asserts the committed fixture's
+spans equal the ``_drive()``-produced spans (content binding, not just
+the SHA), so it is provably the output of the exercised path.
 
 Every span is redacted (:func:`redact`: Luhn-validated PAN + email,
 ``. - /`` separators, right digit-boundary) before it is recorded or
@@ -71,6 +74,10 @@ _RUN_METRICS = ("RunLatencySeconds", "RunSuccessRate")
 # one side, the document on the other).
 CREW_NAMESPACE = "ComplianceAssistant/Crew"
 CREW_METRIC_NAMES = frozenset(SPAN_METRIC.values()) | frozenset(_RUN_METRICS)
+# The quality SLOs reuse the Phase-3 bars; their metrics are produced
+# by the eval harness report path (build_quality_emf), not the crew.
+QUALITY_NAMESPACE = "ComplianceAssistant/Quality"
+QUALITY_METRIC_NAMES = frozenset({"Faithfulness", "CitationCorrectness"})
 
 FIXTURE = (
     Path(__file__).resolve().parents[2]
@@ -83,8 +90,13 @@ _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
 # (?!\d) boundary stops a Luhn-valid prefix inside a longer id being
 # partially masked). Masked ONLY if Luhn-valid, so non-card long ids
 # stay visible.
-_PAN_CANDIDATE_RE = re.compile(r"(?<!\d)(?:\d[ \-./]?){13,19}(?<=\d)(?!\d)")
-_PAN_SEP_RE = re.compile(r"[ \-./]")
+# Allow runs of separators (multi-space, newline, mixed . - /) between
+# digits, not just a single one — a PAN split by a double space or a
+# newline must still be caught. Left/right digit boundaries keep a
+# Luhn-valid prefix inside a longer pure-digit id from partial masking;
+# the Luhn gate keeps non-card numbers visible.
+_PAN_CANDIDATE_RE = re.compile(r"(?<!\d)\d(?:[\s\-./]{0,3}\d){12,18}(?<=\d)(?!\d)")
+_PAN_SEP_RE = re.compile(r"[\s\-./]")
 
 
 def tracing_live_enabled(env: Mapping[str, str]) -> bool:
@@ -199,6 +211,52 @@ def build_emf(durations: Mapping[str, float], success: bool,
                                  for s in SPAN_ORDER)))
     doc["RunSuccessRate"] = 100.0 if success else 0.0
     return doc
+
+
+def build_quality_emf(faithfulness: float, citation_correctness: float,
+                      now_ms: int | None = None) -> dict:
+    """A CloudWatch EMF doc for the ComplianceAssistant/Quality SLO
+    metrics. The eval harness report path emits this (opt-in) so the
+    Quality alarms watch a real producer; the producer-contract test
+    pins these names to the Quality rows of docs/SLOs.md."""
+    return {
+        "_aws": {
+            "Timestamp": now_ms if now_ms is not None
+            else int(time.time() * 1000),
+            "CloudWatchMetrics": [{
+                "Namespace": QUALITY_NAMESPACE,
+                "Dimensions": [[]],
+                "Metrics": [
+                    {"Name": "Faithfulness", "Unit": "None"},
+                    {"Name": "CitationCorrectness", "Unit": "None"},
+                ],
+            }],
+        },
+        "Faithfulness": float(faithfulness),
+        "CitationCorrectness": float(citation_correctness),
+    }
+
+
+def run_with_tracing(tracer: "Tracer", kickoff):
+    """The real run boundary. Runs ``kickoff`` (the crew), then emits
+    the run's EMF metric line exactly once — success on a clean return,
+    failure (and re-raise) on an exception. This is what makes the
+    ComplianceAssistant/Crew SLO alarms watch a metric that is actually
+    produced on every `crewai run`. ``finalize`` failures never mask
+    the crew's own outcome."""
+    try:
+        result = kickoff()
+    except Exception:
+        try:
+            tracer.finalize(success=False)
+        except Exception:
+            pass
+        raise
+    try:
+        tracer.finalize(success=True)
+    except Exception:
+        pass
+    return result
 
 
 class Tracer:

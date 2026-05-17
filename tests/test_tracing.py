@@ -155,6 +155,105 @@ def test_emf_producer_emits_exactly_the_crew_slo_metrics():
     assert t.finalize(success=False, emit=lambda _x: None) is not None
 
 
+def test_committed_fixture_is_the_drive_paths_output():
+    # Content binding (not just SHA): the committed run_spans.json must
+    # equal what the exercised _drive() callback path produces.
+    import pathlib
+    import tempfile
+    t = tracing.Tracer()
+    _drive(t)
+    with tempfile.TemporaryDirectory() as d:
+        p = pathlib.Path(d) / "f.json"
+        t.record(p)
+        fresh = {s["name"]: s for s in tracing.load(p)["spans"]}
+    committed = {s["name"]: s for s in _doc()["spans"]}
+    assert set(fresh) == set(committed) == set(tracing.SPAN_ORDER)
+    for n in tracing.SPAN_ORDER:
+        for field in ("input", "output", "tool_calls"):
+            assert fresh[n][field] == committed[n][field], (
+                f"committed fixture {n}.{field} != _drive() output "
+                f"(fixture not produced by the exercised path)")
+
+
+class _FakeTracer:
+    def __init__(self):
+        self.calls = []
+
+    def finalize(self, success):
+        self.calls.append(success)
+
+
+def test_run_with_tracing_finalizes_once_on_success_and_failure():
+    f = _FakeTracer()
+    assert tracing.run_with_tracing(f, lambda: "result") == "result"
+    assert f.calls == [True], "finalize(success=True) once on clean return"
+
+    f2 = _FakeTracer()
+
+    def _boom():
+        raise RuntimeError("crew exploded")
+
+    with pytest.raises(RuntimeError, match="crew exploded"):
+        tracing.run_with_tracing(f2, _boom)
+    assert f2.calls == [False], "finalize(success=False) once, then re-raise"
+
+    # A finalize() that itself raises must never mask the crew outcome.
+    class _BadTracer:
+        def finalize(self, success):
+            raise ValueError("metric sink down")
+
+    assert tracing.run_with_tracing(_BadTracer(), lambda: 7) == 7
+    with pytest.raises(RuntimeError, match="orig"):
+        tracing.run_with_tracing(
+            _BadTracer(), lambda: (_ for _ in ()).throw(RuntimeError("orig")))
+
+
+def test_main_run_wires_the_tracer_to_the_run_boundary():
+    # The wiring contract without importing crewai: main.run builds a
+    # ComplianceAssistant, calls ca.crew(), and routes kickoff through
+    # run_with_tracing(ca._tracer, ...). Assert the source encodes that.
+    import pathlib
+    src = pathlib.Path("src/compliance_assistant/main.py").read_text()
+    assert "run_with_tracing(ca._tracer" in src
+    assert src.count("run_with_tracing(ca._tracer") >= 4  # run/train/replay/test
+    crew_src = pathlib.Path("src/compliance_assistant/crew.py").read_text()
+    assert "self._tracer = build_tracer()" in crew_src
+    assert "step_callback=self._tracer.on_step" in crew_src
+
+
+def test_quality_producer_contract_matches_slo_doc():
+    import sys
+    sys.path.insert(0, "infra")
+    from stacks.slo_contract import SLOS_MD, parse_slos
+
+    quality_slo_metrics = {
+        s.metric for s in parse_slos(SLOS_MD)
+        if s.namespace == tracing.QUALITY_NAMESPACE
+    }
+    assert tracing.QUALITY_METRIC_NAMES == quality_slo_metrics, (
+        f"quality producer {sorted(tracing.QUALITY_METRIC_NAMES)} != "
+        f"quality SLO metrics {sorted(quality_slo_metrics)}")
+    doc = tracing.build_quality_emf(0.97, 0.96)
+    names = {m["Name"] for m in doc["_aws"]["CloudWatchMetrics"][0]["Metrics"]}
+    assert names == tracing.QUALITY_METRIC_NAMES
+    assert doc["_aws"]["CloudWatchMetrics"][0]["Namespace"] \
+        == tracing.QUALITY_NAMESPACE
+    assert doc["Faithfulness"] == 0.97 and doc["CitationCorrectness"] == 0.96
+
+
+def test_eval_harness_emits_quality_metrics_only_when_opted_in():
+    import sys
+    sys.path.insert(0, "tests")
+    from evals.harness import report as R
+
+    rep = {"configs": [{"deploy_equivalent": True, "generation": {
+        "faithfulness": 0.99, "citation_correctness": 0.98}}]}
+    assert R.emit_quality_metrics(rep, env={}) is None  # default OFF
+    doc = R.emit_quality_metrics(rep, env={"EVALS_EMIT_METRICS": "1"})
+    assert doc is not None
+    assert doc["Faithfulness"] == 0.99 and doc["CitationCorrectness"] == 0.98
+
+
 @pytest.mark.skipif(
     not tracing.tracing_live_enabled(os.environ),
     reason="live capture is opt-in (set TRACING_LIVE=1)",

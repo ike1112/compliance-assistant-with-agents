@@ -5,6 +5,7 @@ import warnings
 from datetime import datetime
 from compliance_assistant.crew import ComplianceAssistant
 from compliance_assistant.startup import validate_startup_config
+from compliance_assistant.tracing import run_with_tracing
 
 # Hides a noisy warning from the pysbd library. Does not affect results.
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
@@ -32,7 +33,12 @@ def run():
     }
 
     try:
-        ComplianceAssistant().crew().kickoff(inputs=inputs)
+        ca = ComplianceAssistant()
+        crew = ca.crew()
+        # run_with_tracing emits the run's SLO metrics (EMF) exactly
+        # once — success on a clean return, failure (then re-raise) on
+        # an exception. The crew's own output is unchanged.
+        run_with_tracing(ca._tracer, lambda: crew.kickoff(inputs=inputs))
     except Exception as e:
         raise Exception(f"An error occurred while running the crew: {e}")
 
@@ -46,7 +52,11 @@ def train():
         "topic": os.environ['TOPIC']
     }
     try:
-        ComplianceAssistant().crew().train(n_iterations=int(sys.argv[1]), filename=sys.argv[2], inputs=inputs)
+        ca = ComplianceAssistant()
+        crew = ca.crew()
+        run_with_tracing(ca._tracer, lambda: crew.train(
+            n_iterations=int(sys.argv[1]), filename=sys.argv[2],
+            inputs=inputs))
 
     except Exception as e:
         raise Exception(f"An error occurred while training the crew: {e}")
@@ -55,7 +65,10 @@ def replay():
     """Re-run from a previously saved task. Arg: the task id to replay from."""
     validate_startup_config(os.environ)
     try:
-        ComplianceAssistant().crew().replay(task_id=sys.argv[1])
+        ca = ComplianceAssistant()
+        crew = ca.crew()
+        run_with_tracing(ca._tracer,
+                         lambda: crew.replay(task_id=sys.argv[1]))
 
     except Exception as e:
         raise Exception(f"An error occurred while replaying the crew: {e}")
@@ -68,7 +81,11 @@ def test():
         "current_year": str(datetime.now().year)
     }
     try:
-        ComplianceAssistant().crew().test(n_iterations=int(sys.argv[1]), openai_model_name=sys.argv[2], inputs=inputs)
+        ca = ComplianceAssistant()
+        crew = ca.crew()
+        run_with_tracing(ca._tracer, lambda: crew.test(
+            n_iterations=int(sys.argv[1]),
+            openai_model_name=sys.argv[2], inputs=inputs))
 
     except Exception as e:
         raise Exception(f"An error occurred while testing the crew: {e}")
