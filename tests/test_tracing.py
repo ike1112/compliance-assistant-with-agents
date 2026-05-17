@@ -254,6 +254,63 @@ def test_eval_harness_emits_quality_metrics_only_when_opted_in():
     assert doc["Faithfulness"] == 0.99 and doc["CitationCorrectness"] == 0.98
 
 
+def test_redact_empty_and_luhn_edge_branches():
+    assert tracing.redact("") == ""               # empty early return
+    assert tracing._luhn_ok("123") is False        # too short
+    assert tracing._luhn_ok("12a4567890123") is False  # non-digit
+    assert tracing._luhn_ok("4111111111111111") is True
+
+
+def test_role_text_and_span_for_edge_branches():
+    assert tracing._role_text(None) == ""
+    assert tracing._role_text(object()) == ""      # no usable attrs
+    assert tracing._span_for(object()) is None
+
+    class _AgentObj:
+        role = "Regulation Researcher"
+
+    class _Wrapper:
+        agent = _AgentObj()                        # .agent is an object
+
+    assert tracing._role_text(_Wrapper()) == "Regulation Researcher"
+    assert tracing._span_for(_Wrapper()) == "researcher"
+
+
+def test_callback_early_returns_are_safe_noops():
+    t = tracing.Tracer()
+    t.on_step()                                    # step is None -> return
+    t.on_step(_Step("nobody-role"))                # unmappable -> return
+    t.on_task()                                    # out is None -> return
+    t.on_task(_TaskOutput("nobody-role", "d", "r"))  # unmappable -> return
+    # No span was created by any of the above no-ops.
+    assert t._spans == {}
+
+
+def test_on_task_captures_tools_used_when_present():
+    class _TO:
+        agent = "Regulation Researcher"
+        description = "d"
+        raw = "r"
+        tools_used = ["BedrockInvokeAgentTool", "Other"]
+
+    t = tracing.Tracer()
+    t.on_task(_TO())
+    tc = t.spans()[0]["tool_calls"]
+    assert [c["tool"] for c in tc] == ["BedrockInvokeAgentTool", "Other"]
+
+
+def test_head_commit_falls_back_to_unknown(monkeypatch):
+    def _raise(*_a, **_k):
+        raise OSError("no git here")
+
+    monkeypatch.setattr(tracing.subprocess, "run", _raise)
+    assert tracing._head_commit() == "unknown"
+
+
+def test_build_tracer_returns_a_tracer():
+    assert isinstance(tracing.build_tracer(), tracing.Tracer)
+
+
 @pytest.mark.skipif(
     not tracing.tracing_live_enabled(os.environ),
     reason="live capture is opt-in (set TRACING_LIVE=1)",
