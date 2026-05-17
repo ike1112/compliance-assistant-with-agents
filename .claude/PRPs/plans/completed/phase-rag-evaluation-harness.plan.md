@@ -312,6 +312,10 @@ testpaths = ["tests", "infra/tests"]
 
 ## Step-by-Step Tasks
 
+> STATUS: Tasks 1–11 COMPLETE (build commit `67aec7a`). Gate 8/8 offline
+> + deterministic; regression 184; mutation 0.839 ≥ 0.80; gold frozen;
+> cdk.json == report.json winner. See the implementation report.
+
 Execute in order. Each task is atomic and independently verifiable.
 
 ### Task 1: UPDATE `pyproject.toml` — register markers
