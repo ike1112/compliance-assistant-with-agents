@@ -14,3 +14,7 @@ infra/cdk.context.json
 .claude/review-gate.state.json
 .claude/review-gate.last-outcome.json
 .mutmut-cache
+# coverage artifacts (test-run output, never tracked)
+.coverage
+**/.coverage
+coverage.xml

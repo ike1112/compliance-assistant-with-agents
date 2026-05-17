@@ -3,36 +3,36 @@
     "name": "codex",
     "passed": false,
     "severity": "MAJOR",
-    "summary": "Round 2 REVISE. Round-1 F-001/F-002/B1/F-003 all verified RESOLVED with file:line. New MAJOR F-004: ECR repo created in the same stack as the AgentCore Runtime that references its image -> clean-account bootstrap cycle; README deploy --all includes the runtime before image push + RAG gate (gate bypass + first-deploy failure). Recommend: separate ECR stack w/ deterministic name, runtime imports it, runbook ordered (infra->gate->push->runtime)."
+    "summary": "Round 3 REVISE. F-004 (ECR bootstrap cycle) fully RESOLVED: 4 stacks synth, runtime imports the deterministic ECR repo + depends on ECR & agent, IAM scoped with only the ecr token wildcard, runbook excludes runtime from bulk deploy. One residual MAJOR: B2 not fully resolved - .claude/PRPs/plans/phase-agentcore-runtime-iac.plan.md:476 still contains 'Tasks 1-9 done in order' (task-position label). Commit subjects clean."
   },
   {
     "name": "test_integrity",
     "passed": true,
     "severity": null,
-    "summary": "mutation: phase owner-exempt (rationale printed, exit 0). coverage: changed-line 96% >= 0.90 floor (diff-cover vs base 95efaf9 exit 0). LEG B PASS."
+    "summary": "mutation: phase owner-exempt (rationale printed, exit 0). coverage: changed-line 96% >= 0.90 (diff-cover vs base 95efaf9). LEG B PASS."
   },
   {
     "name": "security",
     "passed": true,
     "severity": null,
-    "summary": "agent-skills:security-auditor PASS, severity null. Round-1 /status disclosure MINOR RESOLVED (class+message to caller, full repr only to container log). Report-write grant verified explicit least-privilege at source AND synthesized template: s3:PutObject reports/* + kms GenerateDataKey/Encrypt only, no Decrypt/LegalHold/Retention/Abort*; sole identity Resource:* = ecr:GetAuthorizationToken; confused-deputy conditions; bucket KMS+versioned+TLS+block-public+access-logged+RETAIN. No new dep/secret. No findings."
+    "summary": "agent-skills:security-auditor PASS severity null. No security regression from the round-3 ECR split: ECR stack IMMUTABLE+scan+RETAIN+deterministic-name; runtime ECR-pull scoped to imported repo ARN; sole identity Resource:* still ecr:GetAuthorizationToken; least-priv s3:PutObject/KMS intact (source+template); confused-deputy conditions; bucket hardening; /status non-leaking. No findings."
   },
   {
     "name": "code",
     "passed": false,
     "severity": "MAJOR",
-    "summary": "agent-skills:code-reviewer REQUEST CHANGES. Round-1 blocking commit-subject jargon RESOLVED (subjects clean, trees byte-identical to pre-reword - content unchanged). F-001/F-002/coverage remediations all verified sound and mutation-resistant. New MAJOR: the committed plan .claude/PRPs/plans/phase-agentcore-runtime-iac.plan.md uses Task 1..9 task-position-label headings + 4 back-refs (13) - the user global CLAUDE.md forbids Task-N in durable artefacts and says reviewers must treat as blocking; outranks the prp-plan skill template. Reword to intent-led headings."
+    "summary": "agent-skills:code-reviewer REQUEST CHANGES. codex F-004 RESOLVED soundly (clean ECR-stack split, ctor threaded through all call sites, ordered runbook, real new tests, 42/42, 4-stack synth). Round-2 Task-N finding NOT fully resolved: 1 residual durable-artefact instance at plan:476 'Tasks 1-9 done in order' (also a dangling ref - the numbered steps were renamed). Same blocking jargon class, incompletely swept. No new blocking issue from round-3 itself."
   },
   {
     "name": "regression",
     "passed": true,
     "severity": null,
-    "summary": "Phase PRD CHECK verbatim all green on window 95efaf9..HEAD: cdk synth --all -q exit 0 (3 stacks incl ComplianceRuntimeStack); pytest infra/tests 37 passed; cfn-lint -r us-east-1 0 errors (W3045 only, documented); README RAG-eval-gate pre-deploy + deploy-ordering present; no IAM Resource:* beyond justified (test-enforced). No src/ or tests/evals change."
+    "summary": "Phase PRD CHECK verbatim all green on 95efaf9..HEAD: cdk synth --all -q exit 0 (4 stacks incl ComplianceRuntimeEcrStack + ComplianceRuntimeStack); pytest infra/tests 42 passed; cfn-lint -r us-east-1 0 errors on runtime + ecr templates; README RAG-eval-gate pre-deploy + ordered no-bulk-deploy present; no IAM Resource:* beyond justified (test-enforced). No src/ or tests/evals change. (Hygiene, non-CHECK: infra/.coverage was accidentally tracked.)"
   },
   {
     "name": "test_engineer",
     "passed": true,
     "severity": "MINOR",
-    "summary": "ADVISORY (non-blocking) PASS. All 3 round-1 advisory gaps + the mutation-soft SSM assertion addressed; new tests mutation-verified genuine (test_no_pre_start_race fails the OLD is_alive logic; socket test asserts status/body/404/drain; failure-path tests assert grounded=False not silent success). Remaining ~4% miss is app.py synth-only + serve()/__main__, accepted. 2 tiny optional adds: POST-unknown 404; completed->new-run transition."
+    "summary": "ADVISORY (non-blocking) PASS. Round-2 advisory items addressed (POST-unknown 404; completed->new-run). Round-3 tests genuine/mutation-resistant (ECR-stack blast-radius split, no-pre-start-race fake-thread guard, cross-stack-repo fixture strengthens sole-wildcard test). No test-quality regression. 2 non-blocking hygiene flags: infra/.coverage committed as a tracked binary (untrack + gitignore); test_handler_routes_over_a_real_socket can flake under --cov (coverage/ThreadingHTTPServer interaction) though it passed in the authoritative LEG B run."
   }
 ]

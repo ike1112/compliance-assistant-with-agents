@@ -473,7 +473,7 @@ branch of CHECK 4) and no other literal wildcard.
 - [ ] no Docker build / no AWS calls during synth or tests; no new runtime dependency
 
 ## Completion Checklist
-- [ ] Tasks 1–9 done in order, each validated immediately
+- [ ] Every implementation step completed in order, each validated immediately
 - [ ] Phase 4 PRD CHECK regression commands all exit 0
 - [ ] Phase-gate panel PASS (codex / mutation+coverage / security / code / regression; test-engineer advisory)
 - [ ] HUMAN-GATE (image push + `cdk deploy`) left for the operator — not run
