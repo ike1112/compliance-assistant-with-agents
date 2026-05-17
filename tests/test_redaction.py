@@ -12,6 +12,8 @@ from compliance_assistant.tracing import Tracer, redact
 _PAN_PLAIN = "4111111111111111"
 _PAN_SPACED = "4111 1111 1111 1111"
 _PAN_DASHED = "4111-1111-1111-1111"
+_PAN_DOTTED = "4111.1111.1111.1111"
+_PAN_SLASHED = "4111/1111/1111/1111"
 _EMAIL = "alice@example.com"
 # 16 ones is NOT Luhn-valid → a long numeric id that must stay visible.
 _NON_PAN_ID = "1111111111111111"
@@ -19,12 +21,24 @@ _REQUEST_ID = "req-2026-0517-000123456789"
 
 
 def test_pan_forms_and_email_are_masked():
-    for pan in (_PAN_PLAIN, _PAN_SPACED, _PAN_DASHED):
+    for pan in (_PAN_PLAIN, _PAN_SPACED, _PAN_DASHED,
+                _PAN_DOTTED, _PAN_SLASHED):
         out = redact(f"card on file: {pan} end")
         assert pan not in out, f"raw PAN survived: {pan!r}"
         assert "[REDACTED-PAN]" in out
     out = redact(f"contact {_EMAIL} please")
     assert _EMAIL not in out and "[REDACTED-EMAIL]" in out
+
+
+def test_luhn_prefix_inside_a_longer_digit_run_is_not_partially_masked():
+    # codex F-002: a Luhn-valid 16-digit prefix glued to more digits is
+    # NOT a card; the right (?!\d) boundary must stop a partial
+    # [REDACTED-PAN]<tail> mask. The whole 20-digit run is non-card and
+    # must stay fully visible.
+    longer = _PAN_PLAIN + "9999"          # 20 digits, not a card
+    out = redact(f"identifier {longer} here")
+    assert "[REDACTED-PAN]" not in out, f"partial mask leaked: {out!r}"
+    assert longer in out
 
 
 def test_non_luhn_long_numbers_stay_visible():

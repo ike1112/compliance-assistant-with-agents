@@ -10,7 +10,23 @@ import textwrap
 
 import pytest
 
-from stacks.slo_contract import SLOS_MD, parse_slos
+from stacks.slo_contract import COMPARATORS, SLO, SLOS_MD, parse_slos
+
+
+@pytest.mark.parametrize("key,expected", sorted(COMPARATORS.items()))
+def test_every_comparator_maps_to_its_cdk_operator(key, expected):
+    # The real SLOs.md uses only gt/lt; assert ALL four keys map
+    # correctly so a gte/lte mapping regression cannot stay dark.
+    slo = SLO(
+        slo_id="s", description="d", namespace="n", metric="m",
+        statistic="Average", period_s=300, eval_periods=1,
+        comparator=key, threshold=1.0, error_budget_30d="1%",
+    )
+    assert slo.comparison_operator == expected
+    assert expected in {
+        "GreaterThanThreshold", "GreaterThanOrEqualToThreshold",
+        "LessThanThreshold", "LessThanOrEqualToThreshold",
+    }
 
 _HEADER = (
     "| slo_id | description | namespace | metric | statistic | "
