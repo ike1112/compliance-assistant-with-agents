@@ -40,7 +40,7 @@ Each phase is an independent sub-project with its own prp-plan and autonomous va
 | 3 | RAG evaluation harness — retrieval / generation / task-level gold sets + LLM-as-judge + CI gate; decides the real chunking value | 1 | complete | `.claude/PRPs/plans/phase-rag-evaluation-harness.plan.md` | GAP-GENAI-02, GAP-GENAI-03 |
 | 4 | AgentCore Runtime IaC — host the crew (8h, scale-to-zero); AgentCore IaC maturity verified vs current docs; Fargate fallback documented | 1 (release-gated by 3) | complete | `.claude/PRPs/plans/phase-agentcore-runtime-iac.plan.md` | GAP-REL-01, GAP-PERF-01 |
 | 5 | Observability + SLOs — AgentCore Observability wiring, model-invocation logging, `docs/SLOs.md`, composite alarms, verbose redaction | 1, 4 | complete | `.claude/PRPs/plans/phase-observability-slos.plan.md` | GAP-OPS-02, GAP-SEC-03, GAP-OPS-03 |
-| 6 | Evidence-backed prod-readiness analysis — full WA-Lens audit against the synthesized stack (cfn-guard, analyze_cdk_project, all 7 pillars) | 1, 2, 3, 4, 5 | pending | _(not yet planned)_ | (audit deliverable; scores COST/SUS deferred from the spine) |
+| 6 | Evidence-backed prod-readiness analysis — full WA-Lens audit against the synthesized stack (cfn-guard, analyze_cdk_project, all 7 pillars) | 2, 3, 4, 5 | pending | _(not yet planned)_ | (audit deliverable; scores COST/SUS deferred from the spine) |
 
 **Parallelism:** Phases 1 and 2 have no dependencies on each other and may run concurrently in separate worktrees.
 
@@ -52,6 +52,7 @@ Each phase is an independent sub-project with its own prp-plan and autonomous va
 
 ## Progress Log
 
+- 2026-05-18 — Phase 6 `Depends on` amended `1, 2, 3, 4, 5` → `2, 3, 4, 5` (owner-authorized scope decision). Phase 6 is analysis-only against synthesized templates (`cdk synth` output + `analyze_cdk_project` + cfn-guard), `HUMAN-GATE: none`; it consumes Phase 1's committed/synthesized IaC, not the deployed stack, so it is decoupled from Phase 1's orthogonal billable `cdk deploy` gate. Phase 1 stays `in-progress`; Phase 6's completion authority is unchanged (full independent panel + `complete` chokepoint).
 - 2026-05-17 — phase 5 -> complete via quality gate (base_sha=0c6399da8027b22cc1687be9149ac7cbcda26e15 passed=True phase=5 round=3 ts=2026-05-18T00:09:19.940293+00:00).
 - 2026-05-17 — phase 4 -> complete via quality gate (base_sha=95efaf96e744c83e624b6b0f28abfc5fb982dc93 passed=True phase=4 round=3 ts=2026-05-17T20:27:40.547667+00:00).
 - 2026-05-16 — phase 3 -> complete via quality gate (base_sha=2dd18538b0777c6a3eb8d2d6b1dee659f90aa94c passed=True phase=3 round=3 ts=2026-05-17T00:52:10.239820+00:00).
