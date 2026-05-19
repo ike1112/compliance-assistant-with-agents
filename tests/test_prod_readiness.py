@@ -8,7 +8,8 @@ mandatory code-fence/prose false-positive fixtures are present, and the
 hardened behaviors (line-anchored fields, exactly-one-of-six,
 dismissal-as-unit, anchored-Evidence with a checkable pointer, exact
 analyze-receipt token, escaping/absolute-path rejection, real cfn-guard
-citation, strict R-token + catalog-table-row exclusion) are isolated.
+citation, strict R-token with declared-set reconciliation, fail-closed
+on malformed/nested HTML comments) are isolated.
 Strengthening the logic + these real cases carries the 0.80 mutation /
 0.90 coverage floors — nothing is weakened.
 """
@@ -254,7 +255,7 @@ def test_two_pillars_undefended_both_reported(tmp_path):
             "'checked, not a gap because' statement") in v
 
 
-# --- anchored Evidence + escaping path (BLOCKER/MAJOR round 2) ---------
+# --- anchored Evidence + escaping/absolute path rejection -------------
 
 def test_evidence_prose_without_pointer_rejected(tmp_path):
     f = _finding("OPS", 1, "we looked and it seems fine generally")
@@ -281,8 +282,8 @@ def test_evidence_repo_ref_is_sufficient(tmp_path):
 
 def test_bare_dotted_token_is_not_a_repo_ref(tmp_path):
     # `a.b:1` has no path separator -> NOT a checkable pointer; the
-    # anchored rule must still flag the finding (closes the round-3
-    # _REPO_REF over-breadth BLOCKER).
+    # anchored rule must still flag the finding (a bare dotted token is
+    # not a path-bearing pointer).
     f = _finding("OPS", 1, "we looked generally; see a.b:1 and x.y:2")
     doc = _good_doc().replace(_finding("OPS", 1, _PE["OPS"]), f)
     assert ("GAP-OPS-1: Evidence: has no checkable reference (need a "
@@ -292,7 +293,8 @@ def test_bare_dotted_token_is_not_a_repo_ref(tmp_path):
 
 def test_repo_ref_regex_is_linear_time():
     # A long dotted run with no `:digits` must not catastrophically
-    # backtrack (round-3 ReDoS) and must not match.
+    # backtrack (regression guard for the disjoint-class rebuild) and
+    # must not match.
     import time
     from compliance_assistant.prod_readiness import _REPO_REF
     s = ("a." * 200000) + "x"
@@ -314,6 +316,34 @@ def test_html_comment_hidden_analyze_token_rejected(tmp_path):
         "assertion)") in validate(_write(tmp_path, doc))
 
 
+def test_nested_html_comment_is_fail_closed(tmp_path):
+    # A nested comment leaves residual content after the single strip
+    # pass -> fail closed (the token must not leak into the scan).
+    doc = _good_doc().replace(
+        "## 1. Purpose & method\n",
+        "## 1. Purpose & method\n<!-- a <!-- b --> "
+        "_evidence/analyze-cdk-project.json -->\n")
+    with pytest.raises(ValueError, match=re.escape(
+            "malformed/nested/unterminated HTML comment")):
+        validate(_write(tmp_path, doc))
+
+
+def test_unterminated_html_comment_is_fail_closed(tmp_path):
+    doc = _good_doc().replace(
+        "## 1. Purpose & method\n",
+        "## 1. Purpose & method\n<!-- _evidence/analyze-cdk-project.json\n")
+    with pytest.raises(ValueError, match=re.escape(
+            "malformed/nested/unterminated HTML comment")):
+        validate(_write(tmp_path, doc))
+
+
+def test_well_formed_single_html_comment_strips_and_validates(tmp_path):
+    doc = _good_doc().replace(
+        "## 1. Purpose & method\n",
+        "## 1. Purpose & method\n<!-- internal note: see ticket -->\n")
+    assert validate(_write(tmp_path, doc)) == []
+
+
 def test_drive_relative_path_rejected(tmp_path):
     doc = _good_doc().replace(
         "  Source: E6-wa-lens-ops.md\n",
@@ -333,7 +363,7 @@ def test_url_encoded_traversal_rejected(tmp_path):
 
 def test_undeclared_r_in_catalog_noncol1_cell_flagged(tmp_path):
     # An undeclared R-id in a catalog row's Resource cell is no longer
-    # excluded (round-3 MINOR: whole-row exclusion removed).
+    # excluded (no positional exclusion: declared = col1 only).
     rows = ("| R-KB | KB supersedes R-OLD-KB | Bedrock IaC |\n"
             "| R-AURORA-VEC | Aurora pgvector | Bedrock IaC |\n")
     assert ("R-OLD-KB: used but not declared in the ### 3.1 catalog"

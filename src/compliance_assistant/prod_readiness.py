@@ -18,8 +18,9 @@ Pinned grammar (a loose matcher breeds equivalent mutants and fail-open
 holes):
 - a pillar section header is exactly ``^## <PILLAR>`` (optionally ``— x``);
 - the resource catalog is the pipe table under ``^### 3.1``; an R-id is
-  "declared" / catalog-excluded only when it sits in a table-ROW line of
-  that block (catalog prose does not declare or exclude);
+  "declared" only as column 1 of a catalog table-ROW (catalog prose does
+  not declare); there is no positional exclusion — every R-id used
+  anywhere that is not in the declared set is flagged;
 - the ranked backlog is the table under ``^## Ranked backlog``;
 - a finding header is ``^GAP-<PILLAR>-<n>``;
 - a Reasoning-Gate field is detected ONLY at line start (after
@@ -259,7 +260,10 @@ def _escaping_tokens(field_val: str) -> list[str]:
         if not t:
             continue
         # Decode percent-encoded separators/dots so an encoded traversal
-        # (`%2E%2E%2F`) cannot slip past the `..`/absolute guards.
+        # (`%2E%2E%2F`) cannot slip past the `..`/absolute guards. The
+        # single pass is deliberate: recursive unquote is itself a
+        # decode-bomb vector, and this guard is defense-in-depth — the
+        # enforced containment control is `_resolve_receipt`.
         dec = unquote(t)
         if (_ESCAPE.search(t) or _ABSOLUTE.match(t)
                 or _ESCAPE.search(dec) or _ABSOLUTE.match(dec)):
@@ -468,6 +472,11 @@ def validate(doc_path: str | Path) -> list[str]:
     # Strip HTML comments first so a token hidden in `<!-- ... -->`
     # (e.g. a faked analyze-receipt citation) never counts anywhere.
     raw = _HTML_COMMENT.sub("", p.read_text(encoding="utf-8"))
+    # Fail closed on a comment marker that survived the single strip pass:
+    # a nested `<!-- a <!-- b --> tok -->` or an unterminated `<!-- tok`
+    # would otherwise leak `tok` into the scan. Mirrors the §3.1 raise.
+    if "<!--" in raw or "-->" in raw:
+        raise ValueError("malformed/nested/unterminated HTML comment")
     stripped = _strip_fenced(raw)
     tokens_text = _strip_for_tokens(raw)
     declared = parse_catalog(stripped)
