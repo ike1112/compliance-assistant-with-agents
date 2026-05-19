@@ -21,6 +21,11 @@
     "5": {
       "pure_logic_paths": ["src/compliance_assistant/citations.py"],
       "frozen_fixture_paths": []
+    },
+    "6": {
+      "pure_logic_paths": ["src/compliance_assistant/prod_readiness.py"],
+      "frozen_fixture_paths": [],
+      "_rationale": "Phase 6 (evidence-backed prod-readiness analysis) is analysis-only; its judged code is the audit-doc integrity checker prod_readiness.py — a deterministic, stdlib-only markdown parser/validator: 7 WA pillars present; each gap carries all six Reasoning-Gate fields; no TBD/placeholder; every R-*/GAP-* cross-reference resolves against the spine catalog. This is parser-like pure logic in the same class as citations.py — NOT defensive I/O glue (cf. phase 2 agent_ids.py) and NOT a mutmut-hostile threaded shim (cf. phase 4 server.py) — so it carries the full global bars: mutation_floor 0.80, coverage_floor 0.90, no override, not mutation_exempt. Kill surface: tests/test_prod_readiness.py. Owner decision 2026-05-18."
     }
   }
 }
