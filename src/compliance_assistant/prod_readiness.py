@@ -5,7 +5,7 @@ The Phase 6 deliverable is a Well-Architected Lens audit
 `_evidence/` receipts. That document is git-untracked working notes, so it
 never enters the review-gate's judged diff — this checker, run by the gate's
 regression leg against the working tree, is the *only* automated guard on the
-audit's completeness and is therefore strict and fail-closed.
+audit's completeness. Every rule is therefore fail-CLOSED, never fail-open.
 
 It mechanizes the integrity checks the spine backlog ran by hand (its Task 5
 Step 3 six-field count and Task 7 Steps 2-3 placeholder + cross-reference
@@ -18,23 +18,27 @@ Grammar is pinned, not heuristic (a loose matcher breeds equivalent mutants):
 - a pillar section header is exactly ``^## <PILLAR>`` (optionally ``— title``);
 - the resource catalog is the pipe table under ``^### 3.1``;
 - the ranked backlog is the table under ``^## Ranked backlog``;
-- a finding header is ``^GAP-<PILLAR>-<n>``.
+- a finding header is ``^GAP-<PILLAR>-<n>``;
+- a Reasoning-Gate field is detected ONLY at line start (after indentation),
+  never by an unanchored substring search, and must occur exactly once.
 Fenced code blocks and inline-code spans are stripped before any token scan,
 so a GAP/R/TBD token that appears only inside an example block does not
-satisfy (or violate) a rule.
+satisfy (or violate) a rule. Every cited ``_evidence/`` path is resolved
+through one resolver that enforces containment under the doc's
+``_evidence/`` directory (no traversal), non-empty, non-stub, JSON-valid.
 """
 from __future__ import annotations
 
 import json
 import re
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 PILLARS: tuple[str, ...] = ("OPS", "SEC", "REL", "PERF", "COST", "SUS", "GENAI")
 
 # The six Reasoning-Gate fields every gap must defend itself on
-# (spine 2026-05-15-compliance-prod-hardening-spine.md:36-46).
+# (spine 2026-05-15-compliance-prod-hardening-spine.md:36-46). Order is the
+# canonical document order; detection is line-anchored, not positional.
 SIX_FIELDS: tuple[str, ...] = (
     "Risk:",
     "Evidence:",
@@ -43,6 +47,7 @@ SIX_FIELDS: tuple[str, ...] = (
     "Counter-argument:",
     "Fix:",
 )
+_EVIDENCE_FIELDS = ("Evidence:", "Source:")
 
 _PILLAR_ALT = "|".join(PILLARS)
 _PILLAR_HEADER = re.compile(rf"^## ({_PILLAR_ALT})\b.*$", re.MULTILINE)
@@ -50,14 +55,18 @@ _CATALOG_HEADER = re.compile(r"^### 3\.1\b.*$", re.MULTILINE)
 _RANKED_HEADER = re.compile(r"^## Ranked backlog\b.*$", re.MULTILINE)
 _ANY_H2 = re.compile(r"^## .*$", re.MULTILINE)
 _ANY_H3 = re.compile(r"^### .*$", re.MULTILINE)
-_FINDING_HEADER = re.compile(rf"^GAP-({_PILLAR_ALT})-\d+\b", re.MULTILINE)
+_FINDING_HEADER = re.compile(rf"^GAP-(?:{_PILLAR_ALT})-\d+\b", re.MULTILINE)
 _GAP_TOKEN = re.compile(rf"\bGAP-(?:{_PILLAR_ALT})-\d+\b")
-_R_TOKEN = re.compile(r"\bR-[A-Z0-9-]+\b")
+# Strict R-id boundary: not preceded or followed by an id char, so
+# `R-AURORA` in prose is NOT a prefix-match of catalog `R-AURORA-VEC`.
+_R_TOKEN = re.compile(r"(?<![A-Za-z0-9-])R-[A-Z0-9-]+(?![A-Za-z0-9-])")
+_R_FULL = re.compile(r"R-[A-Z0-9-]+")
+_EVIDENCE_CITE = re.compile(r"_evidence/[A-Za-z0-9._\-/]+")
+_CFN_GUARD_CITE = re.compile(r"_evidence/cfn-guard-[A-Za-z0-9._\-]+\.txt")
+_ANALYZE_RECEIPT = "_evidence/analyze-cdk-project.json"
 _PLACEHOLDERS = ("TBD", "TODO", "XXX", "_(filled in Task")
 _STUB_SENTINELS = ("STUB", "FAILED-FETCH", "TBD")
-_NOT_A_GAP = "checked, not a gap because"
-_ANALYZE_RECEIPT = "_evidence/analyze-cdk-project.json"
-_CFN_GUARD_GLOB = "cfn-guard-"
+_NOT_A_GAP = re.compile(r"^\s*checked, not a gap because\b", re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -65,12 +74,18 @@ class Finding:
     gap_id: str
     pillar: str
     fields: dict[str, str]
+    counts: dict[str, int]
+
+    def complete(self) -> bool:
+        return all(
+            self.counts[k] == 1 and self.fields[k] for k in SIX_FIELDS
+        )
 
 
 def _strip_fenced(text: str) -> str:
     """Remove ```-fenced code blocks (their lines could otherwise be parsed
-    as findings/tables). Inline code is kept so a backticked term inside a
-    field value still parses."""
+    as findings/tables). Inline code is kept so a backticked path inside a
+    field value still resolves and parses."""
     out: list[str] = []
     in_fence = False
     for line in text.splitlines():
@@ -83,11 +98,22 @@ def _strip_fenced(text: str) -> str:
 
 
 def _strip_for_tokens(text: str) -> str:
-    """For token-occurrence rules: drop fenced blocks AND inline-code spans
-    so a GAP/R/TBD token that appears only inside example code is neither a
-    satisfied cross-reference nor a placeholder violation."""
-    no_fence = _strip_fenced(text)
-    return re.sub(r"`[^`]*`", "", no_fence)
+    """For token-occurrence rules (placeholder / GAP >=2x / R-declared):
+    drop fenced blocks AND inline-code spans so a GAP/R/TBD token that
+    appears only inside example code is neither satisfied nor violated."""
+    return re.sub(r"`[^`]*`", "", _strip_fenced(text))
+
+
+def _line_label(line: str) -> str | None:
+    """The Reasoning-Gate field a line *starts* (after indentation), or
+    None. Line-anchored on purpose: a value that merely mentions
+    ``Source:`` mid-sentence is not a field (closes the str.find collision
+    that let an empty terminal field be filled by borrowed text)."""
+    s = line.lstrip()
+    for lab in SIX_FIELDS:
+        if s.startswith(lab):
+            return lab
+    return None
 
 
 def _sections(stripped: str) -> dict[str, str]:
@@ -119,21 +145,29 @@ def _table_rows(block: str) -> list[list[str]]:
     return rows
 
 
-def _section_after(stripped: str, header: re.Pattern[str],
+def _catalog_span(text: str) -> tuple[int, int] | None:
+    m = _CATALOG_HEADER.search(text)
+    if m is None:
+        return None
+    nxt = _ANY_H3.search(text, m.end())
+    return (m.start(), nxt.start() if nxt else len(text))
+
+
+def _section_after(text: str, header: re.Pattern[str],
                     stop: re.Pattern[str]) -> str:
-    m = header.search(stripped)
+    m = header.search(text)
     if m is None:
         return ""
-    nxt = stop.search(stripped, m.end())
-    return stripped[m.end():nxt.start() if nxt else len(stripped)]
+    nxt = stop.search(text, m.end())
+    return text[m.end():nxt.start() if nxt else len(text)]
 
 
 def parse_catalog(stripped: str) -> set[str]:
     """Declared R-* ids = column 1 of the table under ``### 3.1``.
-    Fail-closed: a present-but-empty catalog is a malformed doc."""
-    block = _section_after(stripped, _CATALOG_HEADER, _ANY_H3)
+    Fail-closed: missing section / header-only / no valid R-id raises."""
     if not _CATALOG_HEADER.search(stripped):
         raise ValueError("resource catalog (### 3.1) section not found")
+    block = _section_after(stripped, _CATALOG_HEADER, _ANY_H3)
     rows = _table_rows(block)
     if len(rows) < 2:  # header row + >=1 data row
         raise ValueError("### 3.1 resource catalog has no data rows")
@@ -145,41 +179,77 @@ def parse_catalog(stripped: str) -> set[str]:
                 f"Source |), got {cells}"
             )
         rid = cells[0]
-        if _R_TOKEN.fullmatch(rid):
+        if _R_FULL.fullmatch(rid):
             declared.add(rid)
     if not declared:
         raise ValueError("### 3.1 declares no valid R-* ids")
     return declared
 
 
+def _finding_blocks(body: str) -> list[tuple[str, str]]:
+    starts = [m.start() for m in _FINDING_HEADER.finditer(body)]
+    out: list[tuple[str, str]] = []
+    for i, s in enumerate(starts):
+        end = starts[i + 1] if i + 1 < len(starts) else len(body)
+        block = body[s:end]
+        out.append((block.split()[0], block))
+    return out
+
+
+def _parse_block_fields(block: str) -> tuple[dict[str, str], dict[str, int]]:
+    """Line-anchored field parse. A field begins only on a line that starts
+    (after indentation) with its label; its value runs to the next field
+    line. Each label's occurrence count is tracked so 'exactly one of each'
+    is enforceable (a duplicate or missing label is a violation)."""
+    fields: dict[str, list[str]] = {k: [] for k in SIX_FIELDS}
+    counts: dict[str, int] = {k: 0 for k in SIX_FIELDS}
+    current: str | None = None
+    for line in block.splitlines():
+        lab = _line_label(line)
+        if lab is not None:
+            counts[lab] += 1
+            current = lab
+            rest = line.lstrip()[len(lab):]
+            fields[lab].append(rest)
+            continue
+        if current is not None:
+            fields[current].append(line)
+    return ({k: "\n".join(v).strip() for k, v in fields.items()}, counts)
+
+
 def parse_findings(stripped: str) -> list[Finding]:
-    """Each ``GAP-<PILLAR>-n`` block, attributed to the pillar section it
-    sits in, with its six indented ``Field:`` values."""
-    sections = _sections(stripped)
     findings: list[Finding] = []
-    for pillar, body in sections.items():
-        starts = [m.start() for m in _FINDING_HEADER.finditer(body)]
-        for i, s in enumerate(starts):
-            end = starts[i + 1] if i + 1 < len(starts) else len(body)
-            block = body[s:end]
-            gap_id = block.split()[0]
-            # Position-based slice: a field's value runs from the end of its
-            # label to the start of the next *present* label (by position).
-            # Robust where a regex lookahead is not: "Counter-argument:"
-            # has a hyphen, "Why this matters here" has no colon.
-            present = sorted(
-                (block.find(label), label)
-                for label in SIX_FIELDS if block.find(label) >= 0
-            )
-            fields: dict[str, str] = {label: "" for label in SIX_FIELDS}
-            for j, (idx, label) in enumerate(present):
-                val_start = idx + len(label)
-                val_end = (
-                    present[j + 1][0] if j + 1 < len(present) else len(block)
-                )
-                fields[label] = block[val_start:val_end].strip()
-            findings.append(Finding(gap_id, pillar, fields))
+    for pillar, body in _sections(stripped).items():
+        for gap_id, block in _finding_blocks(body):
+            f, c = _parse_block_fields(block)
+            findings.append(Finding(gap_id, pillar, f, c))
     return findings
+
+
+def _resolve_receipt(base: Path, rel: str) -> str | None:
+    """Resolve a cited ``_evidence/<x>`` path fail-closed: it must stay
+    inside ``<doc dir>/_evidence`` (no traversal), exist, be non-empty,
+    carry no stub sentinel, and (for the analyze receipt) be non-empty
+    JSON. Returns a violation string or None."""
+    ev_root = (base / "_evidence").resolve()
+    target = (base / rel).resolve()
+    if target != ev_root and ev_root not in target.parents:
+        return f"cited evidence path escapes _evidence/: {rel}"
+    if not target.is_file():
+        return f"cited evidence missing: {rel}"
+    body = target.read_text(encoding="utf-8", errors="replace")
+    if not body.strip():
+        return f"cited evidence empty: {rel}"
+    if any(s in body for s in _STUB_SENTINELS):
+        return f"cited evidence is a stub/placeholder: {rel}"
+    if rel.endswith("analyze-cdk-project.json"):
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            return f"{rel}: not valid JSON"
+        if not data:
+            return f"{rel}: empty service inventory"
+    return None
 
 
 def _rule_pillars_present(sections: dict[str, str]) -> list[str]:
@@ -190,7 +260,7 @@ def _rule_pillars_present(sections: dict[str, str]) -> list[str]:
 
 
 def _rule_pillar_defended(
-    sections: dict[str, str], findings: list[Finding]
+    sections: dict[str, str], findings: list[Finding], base: Path
 ) -> list[str]:
     by_pillar: dict[str, list[Finding]] = {p: [] for p in PILLARS}
     for f in findings:
@@ -199,39 +269,59 @@ def _rule_pillar_defended(
     for p in PILLARS:
         if p not in sections:
             continue
-        complete = [
-            f for f in by_pillar[p]
-            if all(f.fields[k] for k in SIX_FIELDS)
-        ]
-        if complete:
+        if any(f.complete() for f in by_pillar[p]):
             continue
         body = sections[p]
-        if _NOT_A_GAP in body:
-            idx = body.index(_NOT_A_GAP)
-            window = body[idx:idx + 600]
-            if "Source:" in window or "Evidence:" in window:
-                continue
-            out.append(
-                f"pillar {p}: 'checked, not a gap because' carries no "
-                f"Source:/Evidence: reference"
-            )
-        else:
+        m = _NOT_A_GAP.search(body)
+        if m is None:
             out.append(
                 f"pillar {p}: no complete six-field finding and no "
                 f"'checked, not a gap because' statement"
             )
+            continue
+        # The dismissal unit: from the phrase to the next blank line /
+        # finding / section. It must itself carry a non-empty Evidence:
+        # or Source: field; a cited _evidence/ is resolved.
+        unit_lines: list[str] = []
+        for line in body[m.start():].splitlines():
+            if unit_lines and (not line.strip()
+                               or _FINDING_HEADER.match(line)):
+                break
+            unit_lines.append(line)
+        unit = "\n".join(unit_lines)
+        ev_val = ""
+        for line in unit.splitlines():
+            lab = _line_label(line)
+            if lab in _EVIDENCE_FIELDS:
+                ev_val = line.lstrip()[len(lab):].strip()
+                break
+        if not ev_val:
+            out.append(
+                f"pillar {p}: 'checked, not a gap because' carries no "
+                f"non-empty Source:/Evidence: reference"
+            )
+            continue
+        for rel in _EVIDENCE_CITE.findall(unit):
+            err = _resolve_receipt(base, rel)
+            if err:
+                out.append(f"pillar {p} dismissal: {err}")
     return out
 
 
-def _rule_cost_sus_cite_receipt(sections: dict[str, str]) -> list[str]:
+def _rule_cost_sus_evidence(findings: list[Finding]) -> list[str]:
     out: list[str] = []
     for p in ("COST", "SUS"):
-        body = sections.get(p, "")
-        if _ANALYZE_RECEIPT not in body:
+        pf = [f for f in findings if f.pillar == p]
+        ok = any(
+            f.counts["Evidence:"] == 1
+            and _ANALYZE_RECEIPT in f.fields["Evidence:"]
+            for f in pf
+        )
+        if not ok:
             out.append(
-                f"pillar {p}: must cite {_ANALYZE_RECEIPT} (the spine "
-                f"deferral is closed only with the service-inventory "
-                f"receipt, not by assertion)"
+                f"pillar {p}: needs a finding citing {_ANALYZE_RECEIPT} "
+                f"in its Evidence: field (spine deferral is closed with "
+                f"the receipt, not by assertion)"
             )
     return out
 
@@ -239,9 +329,14 @@ def _rule_cost_sus_cite_receipt(sections: dict[str, str]) -> list[str]:
 def _rule_six_fields(findings: list[Finding]) -> list[str]:
     out: list[str] = []
     for f in findings:
-        missing = [k for k in SIX_FIELDS if not f.fields[k]]
-        if missing:
-            out.append(f"{f.gap_id}: missing/empty field(s) {missing}")
+        for k in SIX_FIELDS:
+            if f.counts[k] == 0 or not f.fields[k]:
+                out.append(f"{f.gap_id}: missing/empty field {k!r}")
+            elif f.counts[k] > 1:
+                out.append(
+                    f"{f.gap_id}: field {k!r} appears {f.counts[k]}x "
+                    f"(exactly one required)"
+                )
     return out
 
 
@@ -253,11 +348,9 @@ def _rule_no_placeholder(tokens_text: str) -> list[str]:
 
 
 def _rule_gap_twice(
-    findings: list[Finding], stripped: str
+    findings: list[Finding], tokens_text: str
 ) -> list[str]:
-    """Every GAP id must occur in a pillar-section finding header AND in a
-    ranked-table row (>= 2 real occurrences; prose/code excluded)."""
-    ranked = _section_after(stripped, _RANKED_HEADER, _ANY_H2)
+    ranked = _section_after(tokens_text, _RANKED_HEADER, _ANY_H2)
     ranked_ids = {
         t for row in _table_rows(ranked) for cell in row
         for t in _GAP_TOKEN.findall(cell)
@@ -265,22 +358,22 @@ def _rule_gap_twice(
     finding_ids = {f.gap_id for f in findings}
     out: list[str] = []
     for gid in sorted(finding_ids | ranked_ids):
-        in_finding = gid in finding_ids
-        in_ranked = gid in ranked_ids
-        if not (in_finding and in_ranked):
+        in_f = gid in finding_ids
+        in_r = gid in ranked_ids
+        if not (in_f and in_r):
             out.append(
                 f"{gid}: must appear in both a pillar finding and the "
-                f"ranked backlog (finding={in_finding}, ranked={in_ranked})"
+                f"ranked backlog (finding={in_f}, ranked={in_r})"
             )
     return out
 
 
-def _rule_r_declared(stripped: str, declared: set[str]) -> list[str]:
-    catalog_block = _section_after(stripped, _CATALOG_HEADER, _ANY_H3)
+def _rule_r_declared(tokens_text: str, declared: set[str]) -> list[str]:
+    span = _catalog_span(tokens_text)
     used: set[str] = set()
-    for m in _R_TOKEN.finditer(stripped):
-        if m.group(0) in catalog_block:
-            continue
+    for m in _R_TOKEN.finditer(tokens_text):
+        if span is not None and span[0] <= m.start() < span[1]:
+            continue  # declared inside the §3.1 catalog (by position)
         used.add(m.group(0))
     return [
         f"{rid}: used but not declared in the ### 3.1 catalog"
@@ -288,39 +381,33 @@ def _rule_r_declared(stripped: str, declared: set[str]) -> list[str]:
     ]
 
 
-def _rule_receipts_real(doc_path: Path, stripped: str,
-                        sections: dict[str, str]) -> list[str]:
-    """Every cited ``_evidence/*`` resolves, is non-empty, non-stub;
-    analyze-cdk-project.json is valid non-empty JSON; SEC and REL each cite
-    a cfn-guard receipt so this check covers it."""
+def _rule_receipts_real(base: Path, stripped: str,
+                        findings: list[Finding]) -> list[str]:
     out: list[str] = []
-    base = doc_path.parent
-    cited = sorted(set(re.findall(r"_evidence/[\w.\-/]+", stripped)))
-    for rel in cited:
-        p = base / rel
-        if not p.is_file():
-            out.append(f"cited evidence missing: {rel}")
-            continue
-        body = p.read_text(encoding="utf-8", errors="replace")
-        if not body.strip():
-            out.append(f"cited evidence empty: {rel}")
-            continue
-        if any(s in body for s in _STUB_SENTINELS):
-            out.append(f"cited evidence is a stub/placeholder: {rel}")
-            continue
-        if rel.endswith("analyze-cdk-project.json"):
-            try:
-                data = json.loads(body)
-            except json.JSONDecodeError:
-                out.append(f"{rel}: not valid JSON")
-                continue
-            if not data:
-                out.append(f"{rel}: empty service inventory")
+    for rel in sorted(set(_EVIDENCE_CITE.findall(stripped))):
+        err = _resolve_receipt(base, rel)
+        if err:
+            out.append(err)
+    # SEC and REL must each cite a real, resolvable cfn-guard receipt in a
+    # finding's Evidence:/Source: field — not a bare 'cfn-guard-' substring.
     for p in ("SEC", "REL"):
-        body = sections.get(p, "")
-        if _CFN_GUARD_GLOB not in body:
+        cited: list[str] = []
+        for f in findings:
+            if f.pillar != p:
+                continue
+            for fld in _EVIDENCE_FIELDS:
+                if f.counts[fld] == 1:
+                    cited += _CFN_GUARD_CITE.findall(f.fields[fld])
+        if not cited:
             out.append(
-                f"pillar {p}: must cite a _evidence/cfn-guard-*.txt receipt"
+                f"pillar {p}: must cite a _evidence/cfn-guard-*.txt receipt "
+                f"in a finding's Evidence:/Source: field"
+            )
+            continue
+        if all(_resolve_receipt(base, c) is not None for c in cited):
+            out.append(
+                f"pillar {p}: no cited cfn-guard receipt resolves "
+                f"(exists/non-empty/non-stub)"
             )
     return out
 
@@ -332,25 +419,27 @@ def validate(doc_path: str | Path) -> list[str]:
     p = Path(doc_path)
     if not p.is_file():
         return [f"prod-readiness audit not found: {p}"]
+    base = p.parent
     raw = p.read_text(encoding="utf-8")
     stripped = _strip_fenced(raw)
     tokens_text = _strip_for_tokens(raw)
     declared = parse_catalog(stripped)
     sections = _sections(stripped)
     findings = parse_findings(stripped)
-    violations: list[str] = []
-    violations += _rule_pillars_present(sections)
-    violations += _rule_pillar_defended(sections, findings)
-    violations += _rule_cost_sus_cite_receipt(sections)
-    violations += _rule_six_fields(findings)
-    violations += _rule_no_placeholder(tokens_text)
-    violations += _rule_gap_twice(findings, stripped)
-    violations += _rule_r_declared(stripped, declared)
-    violations += _rule_receipts_real(p, stripped, sections)
-    return violations
+    v: list[str] = []
+    v += _rule_pillars_present(sections)
+    v += _rule_pillar_defended(sections, findings, base)
+    v += _rule_cost_sus_evidence(findings)
+    v += _rule_six_fields(findings)
+    v += _rule_no_placeholder(tokens_text)
+    v += _rule_gap_twice(findings, tokens_text)
+    v += _rule_r_declared(tokens_text, declared)
+    v += _rule_receipts_real(base, stripped, findings)
+    return v
 
 
 def main(argv: list[str] | None = None) -> int:
+    import sys
     args = sys.argv[1:] if argv is None else argv
     if not args:
         print("usage: python -m compliance_assistant.prod_readiness <doc>",
