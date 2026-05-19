@@ -39,6 +39,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import unquote
 
 PILLARS: tuple[str, ...] = ("OPS", "SEC", "REL", "PERF", "COST", "SUS", "GENAI")
 
@@ -66,8 +67,12 @@ _R_TOKEN = re.compile(r"(?<![A-Za-z0-9-])R-[A-Z0-9-]+(?![A-Za-z0-9-])")
 _R_FULL = re.compile(r"R-[A-Z0-9-]+")
 # A citation ends on an id char (no trailing sentence punctuation).
 _EVIDENCE_CITE = re.compile(r"_evidence/[A-Za-z0-9._\-/]*[A-Za-z0-9_\-/]")
-# A concrete repo reference: path.ext:line .
-_REPO_REF = re.compile(r"\b[\w.\-/]+\.\w+:\d+\b")
+# A concrete repo reference: a real PATH (>=1 `/`) ending file.ext:line.
+# The path/segment classes carry no `.` so they cannot overlap the literal
+# `\.` extension dot — linear time, no catastrophic backtracking, and a
+# bare prose token like `a.b:1` (no `/`) is rejected as not-a-pointer.
+_REPO_REF = re.compile(r"\b[\w\-]+(?:/[\w\-]+)+\.\w+:\d+\b")
+_HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 # The COST/SUS receipt, exact token (rejects analyze-...json.bak / suffix).
 _ANALYZE_EXACT = re.compile(
     r"(?<![\w./\-])_evidence/analyze-cdk-project\.json(?![\w.\-])")
@@ -77,8 +82,9 @@ _PLACEHOLDERS = ("TBD", "TODO", "XXX", "_(filled in Task")
 _STUB_SENTINELS = ("STUB", "FAILED-FETCH", "TBD")
 _NOT_A_GAP = re.compile(r"^\s*checked, not a gap because\b", re.MULTILINE)
 # An escaping / absolute / drive / UNC path token (never valid evidence).
+# `[A-Za-z]:` (no required separator) also catches drive-relative `C:1`.
 _ESCAPE = re.compile(r"(^|[\\/])\.\.([\\/]|$)")
-_ABSOLUTE = re.compile(r"^(/|\\\\|[A-Za-z]:[\\/])")
+_ABSOLUTE = re.compile(r"^(/|\\\\|[A-Za-z]:)")
 
 
 @dataclass(frozen=True)
@@ -158,24 +164,6 @@ def _table_rows(block: str) -> list[list[str]]:
 
 def _catalog_block(text: str) -> str:
     return _section_after(text, _CATALOG_HEADER, _ANY_H3)
-
-
-def _catalog_row_ranges(text: str) -> list[tuple[int, int]]:
-    """Absolute [start,end) char ranges of the §3.1 *table-row* lines only
-    (not the header span, not catalog prose). An R-token is catalog-
-    excluded iff it lies inside one of these — closes the prose escape."""
-    m = _CATALOG_HEADER.search(text)
-    if m is None:
-        return []
-    nxt = _ANY_H3.search(text, m.end())
-    block_start, block_end = m.end(), nxt.start() if nxt else len(text)
-    ranges: list[tuple[int, int]] = []
-    pos = block_start
-    for line in text[block_start:block_end].splitlines(keepends=True):
-        if _is_table_row(line):
-            ranges.append((pos, pos + len(line)))
-        pos += len(line)
-    return ranges
 
 
 def _section_after(text: str, header: re.Pattern[str],
@@ -270,7 +258,11 @@ def _escaping_tokens(field_val: str) -> list[str]:
         t = tok.strip("`*()[],;")
         if not t:
             continue
-        if _ESCAPE.search(t) or _ABSOLUTE.match(t):
+        # Decode percent-encoded separators/dots so an encoded traversal
+        # (`%2E%2E%2F`) cannot slip past the `..`/absolute guards.
+        dec = unquote(t)
+        if (_ESCAPE.search(t) or _ABSOLUTE.match(t)
+                or _ESCAPE.search(dec) or _ABSOLUTE.match(dec)):
             bad.append(t)
     return bad
 
@@ -424,12 +416,12 @@ def _rule_gap_twice(
 
 
 def _rule_r_declared(tokens_text: str, declared: set[str]) -> list[str]:
-    ranges = _catalog_row_ranges(tokens_text)
-    used: set[str] = set()
-    for m in _R_TOKEN.finditer(tokens_text):
-        if any(a <= m.start() < b for a, b in ranges):
-            continue  # inside a §3.1 catalog table row (by position)
-        used.add(m.group(0))
+    """Every R-id used anywhere must be declared in the §3.1 catalog.
+    No positional exclusion: a declared id (column 1 of a catalog row) is
+    in `declared` so it never self-flags, while an undeclared id is caught
+    wherever it appears — catalog prose, a catalog non-id cell, or a
+    finding. Closes both the prose-escape and the non-id-cell hole."""
+    used = {m.group(0) for m in _R_TOKEN.finditer(tokens_text)}
     return [
         f"{rid}: used but not declared in the ### 3.1 catalog"
         for rid in sorted(used - declared)
@@ -473,7 +465,9 @@ def validate(doc_path: str | Path) -> list[str]:
     if not p.is_file():
         return [f"prod-readiness audit not found: {p}"]
     base = p.parent
-    raw = p.read_text(encoding="utf-8")
+    # Strip HTML comments first so a token hidden in `<!-- ... -->`
+    # (e.g. a faked analyze-receipt citation) never counts anywhere.
+    raw = _HTML_COMMENT.sub("", p.read_text(encoding="utf-8"))
     stripped = _strip_fenced(raw)
     tokens_text = _strip_for_tokens(raw)
     declared = parse_catalog(stripped)

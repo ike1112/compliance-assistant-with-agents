@@ -12,6 +12,7 @@ citation, strict R-token + catalog-table-row exclusion) are isolated.
 Strengthening the logic + these real cases carries the 0.80 mutation /
 0.90 coverage floors — nothing is weakened.
 """
+import re
 from pathlib import Path
 
 import pytest
@@ -276,6 +277,67 @@ def test_evidence_repo_ref_is_sufficient(tmp_path):
     f = _finding("OPS", 1, "see infra/stacks/observability_stack.py:42")
     doc = _good_doc().replace(_finding("OPS", 1, _PE["OPS"]), f)
     assert not any("GAP-OPS-1" in s for s in validate(_write(tmp_path, doc)))
+
+
+def test_bare_dotted_token_is_not_a_repo_ref(tmp_path):
+    # `a.b:1` has no path separator -> NOT a checkable pointer; the
+    # anchored rule must still flag the finding (closes the round-3
+    # _REPO_REF over-breadth BLOCKER).
+    f = _finding("OPS", 1, "we looked generally; see a.b:1 and x.y:2")
+    doc = _good_doc().replace(_finding("OPS", 1, _PE["OPS"]), f)
+    assert ("GAP-OPS-1: Evidence: has no checkable reference (need a "
+            "resolvable _evidence/ citation or a path.ext:line repo ref)"
+            ) in validate(_write(tmp_path, doc))
+
+
+def test_repo_ref_regex_is_linear_time():
+    # A long dotted run with no `:digits` must not catastrophically
+    # backtrack (round-3 ReDoS) and must not match.
+    import time
+    from compliance_assistant.prod_readiness import _REPO_REF
+    s = ("a." * 200000) + "x"
+    t0 = time.time()
+    assert _REPO_REF.search(s) is None
+    assert time.time() - t0 < 1.0
+
+
+def test_html_comment_hidden_analyze_token_rejected(tmp_path):
+    # COST Evidence hides the receipt in an HTML comment -> still rejected
+    # (the token is stripped before any scan).
+    doc = _good_doc().replace(
+        "_evidence/analyze-cdk-project.json (Aurora MinCapacity 0)",
+        "<!-- _evidence/analyze-cdk-project.json --> infra/x/y.py:1")
+    assert (
+        "pillar COST: needs a finding citing the exact "
+        "_evidence/analyze-cdk-project.json receipt in its Evidence: "
+        "field (spine deferral is closed with the receipt, not by "
+        "assertion)") in validate(_write(tmp_path, doc))
+
+
+def test_drive_relative_path_rejected(tmp_path):
+    doc = _good_doc().replace(
+        "  Source: E6-wa-lens-ops.md\n",
+        "  Source: C:1 and E6-wa-lens-ops.md\n", 1)
+    assert ("GAP-OPS-1: Source: has an escaping/absolute path token 'C:1'"
+            ) in validate(_write(tmp_path, doc))
+
+
+def test_url_encoded_traversal_rejected(tmp_path):
+    doc = _good_doc().replace(
+        "  Evidence: infra/stacks/observability_stack.py:10\n",
+        "  Evidence: observability_stack.py:10 %2E%2E%2Fsecret\n", 1)
+    v = validate(_write(tmp_path, doc))
+    assert any("GAP-OPS-1: Evidence: has an escaping/absolute path token"
+               in s for s in v)
+
+
+def test_undeclared_r_in_catalog_noncol1_cell_flagged(tmp_path):
+    # An undeclared R-id in a catalog row's Resource cell is no longer
+    # excluded (round-3 MINOR: whole-row exclusion removed).
+    rows = ("| R-KB | KB supersedes R-OLD-KB | Bedrock IaC |\n"
+            "| R-AURORA-VEC | Aurora pgvector | Bedrock IaC |\n")
+    assert ("R-OLD-KB: used but not declared in the ### 3.1 catalog"
+            ) in validate(_write(tmp_path, _good_doc(rows)))
 
 
 def test_evidence_dotdot_escape_rejected(tmp_path):
@@ -560,25 +622,28 @@ def test_malformed_catalog_raises_then_main_returns_one(tmp_path):
         "| R-KB | Bedrock Knowledge Base | Bedrock IaC |",
         "| R-KB | only-two-cells |")
     p = _write(tmp_path, doc)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=re.escape("row needs >=3 cells")):
         validate(p)
     assert main([str(p)]) == 1
 
 
 def test_catalog_absent_raises(tmp_path):
     doc = _good_doc().replace("### 3.1 Resource catalog", "### 3.0 misc")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=re.escape(
+            "resource catalog (### 3.1) section not found")):
         validate(_write(tmp_path, doc))
 
 
 def test_catalog_header_only_no_data_rows_raises(tmp_path):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=re.escape(
+            "### 3.1 resource catalog has no data rows")):
         validate(_write(tmp_path, _good_doc(catalog_rows="")))
 
 
 def test_catalog_no_valid_r_ids_raises(tmp_path):
     rows = "| KB | Bedrock Knowledge Base | Bedrock IaC |\n"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=re.escape(
+            "### 3.1 declares no valid R-* ids")):
         validate(_write(tmp_path, _good_doc(rows)))
 
 
