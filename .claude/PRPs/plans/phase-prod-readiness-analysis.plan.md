@@ -1,5 +1,23 @@
 # Feature: Evidence-backed prod-readiness analysis (WA-Lens audit of the synthesized stack)
 
+> **Revision note (post adversarial plan review).** Hardened to resolve the
+> codex-rescue BLOCKER + MAJORs and code-reviewer MAJOR-A..D before any build:
+> (BLOCKER) required `_evidence/` receipts must be real/non-stub and the
+> checker (rule 8) verifies every cited receipt resolves, is non-empty, and is
+> parseable — no stub-and-pass; (MAJOR) COST/SUS must cite
+> `_evidence/analyze-cdk-project.json` (rule 3) and every "checked, not a gap"
+> must carry an evidence/source ref (rule 2) — the spine deferral cannot be
+> closed by assertion; (MAJOR) Task 1 now pins the literal pillar/§3.1/ranked
+> grammar and strips code-fences/prose before token scans, with mandatory
+> false-positive fixtures in Task 2, so the 0.80 mutation floor is reachable;
+> (MAJOR) the `git status --porcelain docs/ == ??` assertion was factually
+> wrong (`.gitignore:7` `docs/*`) — restated as the correct gitignored-and-
+> not-staged invariant in Validation/Level 3/Task 6/Task 7/Acceptance;
+> (MAJOR) Task 7 reduced to verify-only since the PRD row was already set
+> `in-progress` at plan time. The Validation section remains a verbatim
+> reproduction of Phase 6's PRD `CHECK:` items and was **not** altered by this
+> revision.
+
 ## Summary
 
 The five hardening sub-projects are built and synth-green. This phase produces
@@ -206,7 +224,7 @@ SUS GENAI`.
 | `docs/analysis/_evidence/cfn-guard-<stack>.txt` | CREATE | `cfn-guard` receipts (untracked) |
 | `docs/analysis/_evidence/analyze-cdk-project.json` | CREATE | `analyze_cdk_project` receipt (untracked) |
 | `docs/analysis/_evidence/synth-manifest.txt` | CREATE | `cdk synth --all` stack list receipt (untracked) |
-| `.claude/PRPs/compliance-prod-hardening.prd.md` | UPDATE | Phase 6 row: `pending` → `in-progress`, link this plan (planning convention, prd.md:61; **never** touch the Status→`complete` cell — the gate chokepoint owns that) |
+| `.claude/PRPs/compliance-prod-hardening.prd.md` | (ALREADY EDITED at plan time, commit 0c2361b) | Phase 6 row already `in-progress` + plan linked; Task 7 is **verify-only**, no further PRD edit; the Status→`complete` flip remains the gate chokepoint's |
 
 ---
 
@@ -237,13 +255,24 @@ SUS GENAI`.
 > - HUMAN-GATE: none (analysis only; produced against the synthesized templates, no deploy required).
 
 **Executable realization of the CHECK items** (the regression leg runs these
-verbatim; each must exit 0):
+verbatim; each must exit 0). The audit doc and `_evidence/` are gitignored
+(`.gitignore:7` `docs/*`, only `!docs/SLOs.md` un-ignored), so they are **not
+in the judged diff** — the checker run by the regression leg against the
+working-tree files is therefore the *only* automated guard on the audit's
+content, and is strengthened accordingly:
 
 1. `test -f docs/analysis/2026-05-16-compliance-prod-readiness.md`
-2. `PYTHONPATH=src python -m compliance_assistant.prod_readiness docs/analysis/2026-05-16-compliance-prod-readiness.md` — exits 0 iff: all 7 pillars (`OPS SEC REL PERF COST SUS GENAI`) present; each pillar has ≥1 complete six-field finding **or** an explicit `checked, not a gap because` line; every `GAP-*` has all six fields; no `TBD`/`TODO`/`XXX`/`_(filled in Task N)_`; every `GAP-*` appears ≥2× (inventory + ranked table); every `R-*` token resolves to the doc's own §3.1 catalog
-3. `test -f docs/analysis/_evidence/analyze-cdk-project.json && ls docs/analysis/_evidence/cfn-guard-*.txt`
+2. `PYTHONPATH=src python -m compliance_assistant.prod_readiness docs/analysis/2026-05-16-compliance-prod-readiness.md` — exits 0 iff ALL hold:
+   - all 7 pillars (`OPS SEC REL PERF COST SUS GENAI`) present as sections matching the literal grammar pinned in Task 1;
+   - each pillar has ≥1 complete six-field finding **or** an explicit `checked, not a gap because X` line **that itself carries a `Source:`/`Evidence:` reference** (no evidence-free dismissal);
+   - **COST and SUS** sections each cite `_evidence/analyze-cdk-project.json` (or `_evidence/synth-manifest.txt`) in an `Evidence:` field — the spine's deferral of these two pillars is closed only with the now-available receipt, never by a bare "checked, not a gap";
+   - every `GAP-*` has all six fields non-empty; no `TBD`/`TODO`/`XXX`/`_(filled in Task N)_`;
+   - every `GAP-<PILLAR>-NN` appears ≥2× (inventory **and** ranked table), counting only real content — tokens inside fenced code blocks / inline-code spans / prose do **not** count;
+   - every `R-*` token used anywhere resolves to a declared row in the doc's §3.1 catalog table; unknown `R-*` = violation;
+   - every `_evidence/*` path the audit cites exists, is non-empty, and is non-placeholder (no `STUB`/`FAILED-FETCH`/`TBD` sentinel); `analyze-cdk-project.json` parses as JSON and contains a non-empty service inventory.
+3. `test -f docs/analysis/_evidence/analyze-cdk-project.json && python -c "import json,sys; d=json.load(open('docs/analysis/_evidence/analyze-cdk-project.json')); sys.exit(0 if d else 1)" && ls docs/analysis/_evidence/cfn-guard-*.txt && ! grep -rl 'STUB\|FAILED-FETCH' docs/analysis/_evidence/`
 4. `PYTHONPATH=src python -m pytest tests/test_prod_readiness.py -q` — all pass
-5. Baseline (no regression): `PYTHONPATH=src python -m pytest tests infra/tests -q` green; `git status --porcelain docs/` shows only `??` (docs stays untracked)
+5. Baseline / untracked invariant (no regression): `PYTHONPATH=src python -m pytest tests infra/tests -q` green; the audit is correctly **gitignored, not staged** — `git check-ignore -q docs/analysis/2026-05-16-compliance-prod-readiness.md` exits 0 (path is ignored by design) **and** `git diff --cached --name-only` lists nothing under `docs/`. (`git status --porcelain docs/` is *empty* under the current `.gitignore`; an implementer must NOT un-ignore `docs/` to make work "visible" — that would violate prd.md:74-75.)
 
 ---
 
@@ -257,33 +286,66 @@ Execute in order. Each task ends with its VALIDATE command.
 - **MIRROR**: `infra/stacks/slo_contract.py:1-60` — module docstring stating
   the contract; `_REPO_ROOT = Path(__file__).resolve().parents[N]` anchoring;
   `raise ValueError(...)` fail-closed on missing file / malformed / ambiguous.
-- **IMPLEMENT** (pure functions, no I/O beyond reading the one doc path passed
-  in; no network; no subprocess):
+- **IMPLEMENT** (pure functions, no network, no subprocess; reads only the
+  doc path passed in and the `_evidence/` files it cites, both relative to
+  the doc's own directory):
+
+  **Pinned grammar (rigid, mirroring `slo_contract.py`'s exact-shape parse —
+  loose matchers cause equivalent mutants and miss the 0.80 floor; this is
+  the top risk, closed here at spec level):**
   - `PILLARS = ("OPS","SEC","REL","PERF","COST","SUS","GENAI")`
   - `SIX_FIELDS = ("Risk:","Evidence:","Why this matters here","Source:","Counter-argument:","Fix:")`
-  - `parse_findings(text) -> list[Finding]` — each `GAP-<PILLAR>-NN` block
-    with its six field lines; `Finding` is a frozen dataclass
-    (`gap_id, pillar, severity, fields: dict[str,str]`).
-  - `validate(text) -> list[str]` — returns the list of violation strings
-    (empty == valid). Rules, each independently testable:
-    1. every pillar in `PILLARS` has a `## <pillar>`-equivalent section
+  - A **pillar section** header is exactly `^## (OPS|SEC|REL|PERF|COST|SUS|GENAI)\b` (anchored, start of line, the pillar token immediately after `## `; a trailing ` — title` is allowed). Nothing else counts as a pillar section.
+  - The **resource catalog** is the markdown table under the header matching `^### 3\.1\b`; each data row is `| R-ID | Resource | Source/Sub-project |` (≥3 pipe-cells, leading/trailing pipe), parsed with the `slo_contract._split_row` idiom. The set of declared `R-*` = column-1 of those rows.
+  - The **ranked backlog** is the table under `^## Ranked backlog\b`.
+  - **Code/prose stripping:** before any token scan, remove fenced code
+    blocks (```` ``` ```` … ```` ``` ````) and inline-code spans (`` `…` ``).
+    `GAP-*`/`R-*` tokens are counted only in the stripped content, and only
+    `GAP-*` occurrences that are either a finding header in a pillar section
+    or a ranked-table row cell count toward the ≥2× rule (prose mentions do
+    not satisfy it).
+  - `parse_findings(stripped) -> list[Finding]` — `Finding` is a frozen
+    dataclass (`gap_id, pillar, severity, fields: dict[str,str]`); a finding
+    header is `^GAP-(OPS|SEC|REL|PERF|COST|SUS|GENAI)-\d+\b`, its six fields
+    are the indented `Field:` lines until the next finding/section.
+  - `cited_evidence(text) -> set[str]` — every `_evidence/<name>` path
+    referenced in any `Evidence:`/`Source:` field.
+
+  `validate(doc_path) -> list[str]` returns violation strings (empty ==
+  valid). Each rule is its own small pure function (independently mutmut-
+  killable):
+    1. every `PILLARS` member has exactly one pillar section (pinned grammar)
     2. each pillar section has ≥1 finding with all six fields non-empty
-       **or** a line matching `checked, not a gap because `
-    3. every parsed `GAP-*` has all six `SIX_FIELDS` present & non-empty
-    4. no `TBD`/`TODO`/`XXX`/`_(filled in Task N)_` anywhere
-    5. every `GAP-<PILLAR>-NN` token occurs ≥2 times (inventory + ranked)
-    6. every `R-[A-Z0-9-]+` token appears in the doc's resource-catalog
-       section (the doc's own §3.1-equivalent table)
-  - `main(argv=None) -> int` — reads the path arg, prints each violation to
-    stderr, returns `1` if any violation else `0`; `raise SystemExit(main())`
-    under `__main__`. (This IS the PRD's "grep script", generalized to a
-    deterministic checker exactly as Phase 5 generalized "monitor I/O" into a
-    binary test.)
-- **GOTCHA**: handle CRLF (`splitlines()` is fine); the doc is untracked and
-  absent in some callers — `main` must return non-zero with a clear message,
-  never traceback, when the file is missing (mirror `slo_contract` `is_file()`
-  guard). Keep every rule a separate small function so mutants are killable.
-- **VALIDATE**: `PYTHONPATH=src python -c "import compliance_assistant.prod_readiness as m; print([f for f in dir(m) if not f.startswith('_')])"` (imports clean)
+       **or** a line matching `checked, not a gap because ` **that line/section
+       also carries a `Source:` or `Evidence:` reference** (no evidence-free
+       dismissal — Codex MAJOR / code-reviewer MAJOR-A)
+    3. **COST and SUS specifically**: their section must cite
+       `_evidence/analyze-cdk-project.json` or `_evidence/synth-manifest.txt`
+       in an `Evidence:` field — the spine deferred these two *only* for lack
+       of a CDK; closing them now requires the receipt, not prose
+    4. every parsed `GAP-*` has all six `SIX_FIELDS` present & non-empty
+    5. no `TBD`/`TODO`/`XXX`/`_(filled in Task N)_` in stripped content
+    6. every `GAP-<PILLAR>-NN` occurs ≥2× across {pillar-section finding
+       header} ∪ {ranked-table row} (prose/code excluded)
+    7. every `R-*` token used outside §3.1 resolves to a declared §3.1 row;
+       any `R-*` not declared there = violation (distinguishes inherited
+       spine ids from new synthesized-resource ids — both must be declared
+       with the catalog columns; Codex MINOR Q4)
+    8. **evidence receipts are real**: every path in `cited_evidence` exists
+       relative to the doc dir, is non-empty, and contains no
+       `STUB`/`FAILED-FETCH`/`TBD` sentinel; if `analyze-cdk-project.json`
+       is cited it must `json.loads` and be non-empty (Codex BLOCKER)
+  - `main(argv=None) -> int` — resolves the path arg, prints each violation
+    to stderr, returns `1` if any violation (or the doc/required receipt is
+    missing) else `0`; `raise SystemExit(main())` under `__main__`. This IS
+    the PRD's "grep script", generalized to a deterministic checker exactly
+    as Phase 5 generalized "monitor I/O" into a binary test.
+- **GOTCHA**: handle CRLF (`splitlines()`); `main` returns non-zero with a
+  one-line message, never a traceback, when the doc or a required receipt is
+  missing (mirror `slo_contract` `is_file()` guard). Every rule is a separate
+  function returning `list[str]`; `validate` concatenates them — so one
+  surviving mutant maps to exactly one rule's test fixture.
+- **VALIDATE**: `PYTHONPATH=src python -c "import compliance_assistant.prod_readiness as m; print(sorted(f for f in dir(m) if not f.startswith('_')))"` (imports clean)
 
 ### Task 2: CREATE `tests/test_prod_readiness.py` — the kill surface
 
@@ -292,18 +354,32 @@ Execute in order. Each task ends with its VALIDATE command.
   asserts; see any current `tests/test_startup.py`-class test for the
   fixture-writing idiom).
 - **IMPLEMENT**: a `GOOD` in-test constant — a minimal but fully valid audit
-  doc (all 7 pillars; ≥1 six-field finding or explicit "checked, not a gap
-  because"; §3.1 catalog declaring its `R-*`; each `GAP-*` in inventory +
-  ranked table). Then **one test per validation rule** mutating `GOOD` into
-  exactly one violation each (missing pillar; finding missing `Source:`;
-  empty `Risk:`; a stray `TBD`; a `GAP-*` appearing once; an `R-*` not in the
-  catalog; missing file → `main()` returns 1, no traceback). Plus: `GOOD`
-  passes (`validate` == []), `main(GOOD path)` returns 0, parser on malformed
-  table raises `ValueError`.
+  doc (all 7 pillars; ≥1 six-field finding or an evidence-citing "checked,
+  not a gap because"; COST+SUS citing `_evidence/analyze-cdk-project.json`;
+  §3.1 catalog declaring every `R-*`; each `GAP-*` in inventory + ranked
+  table) written into `tmp_path` together with a minimal valid
+  `_evidence/analyze-cdk-project.json` + `_evidence/synth-manifest.txt`.
+  Then **one test per validation rule (1–8)**, each mutating `GOOD` into
+  exactly one violation: missing pillar; finding missing `Source:`; empty
+  `Risk:`; evidence-free `checked, not a gap`; COST section not citing the
+  receipt; SUS section not citing the receipt; stray `TBD`; a `GAP-*`
+  appearing once; an `R-*` not in §3.1; missing doc → `main()` returns 1 no
+  traceback; cited `_evidence/x.json` absent; cited receipt containing
+  `STUB`; `analyze-cdk-project.json` not valid JSON. **Plus the
+  false-positive fixtures (Codex MAJOR Q1 / code-reviewer MAJOR-C):** a
+  `GAP-*` token that appears twice but *both inside a fenced code block* must
+  still fail rule 6 (prose/code excluded); an `R-*` mentioned only in a code
+  fence must still fail rule 7; a `TBD` inside a code fence is **not** a
+  rule-5 violation (stripped). Plus: `GOOD` passes (`validate` == []),
+  `main(GOOD)` returns 0, parser on a malformed §3.1 table raises
+  `ValueError`.
 - **GOTCHA**: this file's thoroughness is the gate. Every branch in
   `prod_readiness.py` must be hit by ≥1 test (diff-cover ≥0.90 on changed
   lines) and every rule must have a fixture that *fails only that rule* so
-  mutmut can't find a surviving mutant (kill-rate ≥0.80).
+  mutmut can't find a surviving mutant (kill-rate ≥0.80). The code-fence /
+  prose exclusion is the subtlest surface — its fixtures are mandatory, not
+  optional, because a regex-counting implementation would pass every other
+  test and silently strand the mutation floor.
 - **VALIDATE**: `PYTHONPATH=src python -m pytest tests/test_prod_readiness.py -q` (all pass)
 
 ### Task 3: Synthesize templates + capture evidence receipts
@@ -326,11 +402,21 @@ Execute in order. Each task ends with its VALIDATE command.
     `docs/analysis/_evidence/analyze-cdk-project.json`.
   - Reuse existing `docs/analysis/_evidence/E6-wa-lens-*.md` (spine) as the
     `Source:` references; only fetch a pillar reference if absent.
-- **GOTCHA**: if an MCP/tool call fails, write a citation stub recording the
-  failure + the command, and continue (spine Task 2 Step 2 pattern) — the
-  audit must still be producible offline; a failed receipt is a documented
-  caveat, not a blocker.
-- **VALIDATE**: `ls docs/analysis/_evidence/analyze-cdk-project.json docs/analysis/_evidence/cfn-guard-*.txt docs/analysis/_evidence/synth-manifest.txt`
+- **GOTCHA (Codex BLOCKER — no stub-and-pass):** the two **required**
+  receipts — `analyze-cdk-project.json` (real JSON service inventory) and at
+  least the `ComplianceAgentStack` `cfn-guard` output — must be genuine,
+  non-empty, non-placeholder artifacts. They are produced from local
+  `cdk synth` output and carry **no billable cost**, so "the tool failed" is
+  not an acceptable terminal state: if `analyze_cdk_project` or `cfn-guard`
+  cannot be run, that is a **gate-blocking condition to surface, not a stub
+  to wave through** (checker rule 8 fails on any `STUB`/`FAILED-FETCH`
+  sentinel or unparseable JSON). The *only* legitimately-deferred receipts
+  are the `ComplianceKbStack`/`ComplianceRuntimeStack` full cfn-guard runs,
+  and those are recorded by citing the **already-accepted Reasoning-Gate
+  justification in `infra/README.md:162-180`** (a real, reviewed prior
+  decision) — not by an empty stub. WA-Lens pillar `Source:` references reuse
+  the spine's existing `_evidence/E6-wa-lens-*.md`; only fetch one if absent.
+- **VALIDATE**: `test -s docs/analysis/_evidence/analyze-cdk-project.json && python -c "import json;json.load(open('docs/analysis/_evidence/analyze-cdk-project.json'))" && ls docs/analysis/_evidence/cfn-guard-*.txt docs/analysis/_evidence/synth-manifest.txt && ! grep -rl 'STUB\|FAILED-FETCH' docs/analysis/_evidence/`
 
 ### Task 4: Write the audit skeleton + §3.1 resource catalog
 
@@ -354,16 +440,28 @@ Execute in order. Each task ends with its VALIDATE command.
   explicit `checked, not a gap because X` statement, evidenced by the Task 3
   receipts and the synthesized stacks.
 - **IMPLEMENT**: reuse/close the spine's `GAP-*` (mark resolved-by with
-  evidence: `file:line` in `infra/` or the `_evidence/` receipt) and raise
-  the **previously-deferred COST and SUS** findings now that
-  `analyze-cdk-project.json` exists (e.g. Aurora `MinCapacity:0` scale-to-zero,
-  no-OpenSearch, arm64 runtime — cite the receipt). Each finding carries the
-  full six fields; each gap appears in its pillar section **and** the Ranked
-  backlog (the ≥2× rule). Pillars with no real gap get an explicit
-  `checked, not a gap because <reason tied to this system>`.
-- **GOTCHA**: `Evidence:` must be a real `file:line` or `_evidence/<file>` —
-  the checker doesn't verify the reference resolves on disk, but the codex/
-  code-review panel legs will; fabricated evidence is a BLOCKER.
+  evidence: `file:line` in `infra/` or the `_evidence/` receipt) and **score
+  the previously-deferred COST and SUS pillars against
+  `_evidence/analyze-cdk-project.json`** (e.g. Aurora `MinCapacity:0`
+  scale-to-zero, no-OpenSearch line item, arm64 runtime) — the COST and SUS
+  sections MUST cite that receipt (checker rule 3), closing the spine's
+  deferral with the receipt rather than asserting readiness. Each finding
+  carries the full six fields; each gap appears in its pillar section **and**
+  the Ranked backlog (the ≥2× rule). A pillar with no real gap gets an
+  explicit `checked, not a gap because <reason tied to this system>` that
+  itself carries a `Source:`/`Evidence:` reference (checker rule 2 — no
+  evidence-free dismissal).
+- **GOTCHA**: the checker now verifies every cited `_evidence/*` resolves,
+  is non-empty, and is non-stub (rule 8) and that COST/SUS cite the receipt
+  (rule 3) — so a hollow audit fails the regression leg. What the checker
+  cannot judge is whether an `Evidence: file:line` *says what the finding
+  claims*; the audit doc is gitignored and **not in the judged diff**, so no
+  codex/security/code panel leg inspects its prose (correcting the earlier
+  mistaken assumption). Accuracy of every `file:line` is therefore the audit
+  author's responsibility and an explicit acceptance criterion — fabricated
+  or mis-cited evidence is a correctness defect the author must not commit;
+  re-open each cited line and confirm it says what the finding claims (spine
+  Task 5 Step 1 pattern).
 - **VALIDATE**: `PYTHONPATH=src python -m compliance_assistant.prod_readiness docs/analysis/2026-05-16-compliance-prod-readiness.md` exits 0
 
 ### Task 6: Ranked backlog + purpose/caveats + final integrity sweep
@@ -376,18 +474,22 @@ Execute in order. Each task ends with its VALIDATE command.
   (closes the ≥2× cross-reference rule); caveats explicitly state which
   `cfn-guard` runs are operator-deferred and why (cite infra/README.md, do
   not reopen).
-- **VALIDATE**: `PYTHONPATH=src python -m compliance_assistant.prod_readiness docs/analysis/2026-05-16-compliance-prod-readiness.md` exits 0 **and** `git status --porcelain docs/` shows only `??`
+- **VALIDATE**: `PYTHONPATH=src python -m compliance_assistant.prod_readiness docs/analysis/2026-05-16-compliance-prod-readiness.md` exits 0 **and** the audit is correctly gitignored (not staged): `git check-ignore -q docs/analysis/2026-05-16-compliance-prod-readiness.md` exits 0 **and** `git diff --cached --name-only` lists nothing under `docs/`
 
-### Task 7: PRD bookkeeping + full regression
+### Task 7: PRD verify-only + full regression
 
-- **ACTION**: update the PRD Phase 6 row `pending` → `in-progress` and link
-  this plan in the PRP Plan column (planning convention, prd.md:61).
-  **Do not** edit the Status→`complete` cell or the Progress Log — the
-  `phase-gate` `complete` chokepoint owns those.
+- **ACTION (verify-only — MAJOR-D):** the PRD Phase 6 row was **already**
+  set `in-progress` with this plan linked at plan-creation time (commit
+  0c2361b; see Progress Log 2026-05-18). Task 7 makes **no PRD edit** —
+  confirm the row reads `in-progress` with `phase-prod-readiness-analysis.plan.md`
+  linked and stop. Do **not** "correct" it, do **not** touch
+  Status→`complete` or the Progress Log (chokepoint-owned). An unnecessary
+  PRD edit here lands in the judged window for no reason.
 - **VALIDATE**:
+  - `grep -n "in-progress.*phase-prod-readiness-analysis.plan.md" .claude/PRPs/compliance-prod-hardening.prd.md` (row already correct — no edit made)
   - `PYTHONPATH=src python -m pytest tests infra/tests -q` (no regression)
   - `PYTHONPATH=src python -m pytest tests/test_prod_readiness.py -q` (kill surface green)
-  - `git status --porcelain docs/` → only `??` lines
+  - audit untracked: `git check-ignore -q docs/analysis/2026-05-16-compliance-prod-readiness.md` exits 0; `git diff --cached --name-only` lists nothing under `docs/`
 
 ---
 
@@ -428,11 +530,13 @@ PYTHONPATH=src python -m pytest tests/test_prod_readiness.py -q
 ```bash
 test -f docs/analysis/2026-05-16-compliance-prod-readiness.md
 PYTHONPATH=src python -m compliance_assistant.prod_readiness docs/analysis/2026-05-16-compliance-prod-readiness.md
-test -f docs/analysis/_evidence/analyze-cdk-project.json && ls docs/analysis/_evidence/cfn-guard-*.txt
+test -s docs/analysis/_evidence/analyze-cdk-project.json && python -c "import json;json.load(open('docs/analysis/_evidence/analyze-cdk-project.json'))" && ls docs/analysis/_evidence/cfn-guard-*.txt
+! grep -rl 'STUB\|FAILED-FETCH' docs/analysis/_evidence/
 PYTHONPATH=src python -m pytest tests infra/tests -q
-git status --porcelain docs/    # only ?? lines
+git check-ignore -q docs/analysis/2026-05-16-compliance-prod-readiness.md   # exit 0: correctly gitignored
+git diff --cached --name-only | grep '^docs/' && exit 1 || true             # nothing under docs/ staged
 ```
-**EXPECT**: every command exit 0; `docs/` untracked.
+**EXPECT**: every command exit 0; the audit is gitignored-by-design and never staged (NOT expected to appear in `git status` — `.gitignore:7` `docs/*`).
 
 ### Level 4: GATE PANEL (run by the phase-gate orchestrator, not here)
 - mutation (`review_gate.cli mutation --phase 6`, floor 0.80 on `prod_readiness.py`)
@@ -444,12 +548,13 @@ git status --porcelain docs/    # only ?? lines
 
 ## Acceptance Criteria
 
-- [ ] `docs/analysis/2026-05-16-compliance-prod-readiness.md` exists; all 7 pillars present; each pillar ≥1 six-field finding or explicit "checked, not a gap because X"; every gap six-field; no `TBD`/placeholder; every `R-*`/`GAP-*` cross-reference resolves (checker exits 0)
-- [ ] `analyze_cdk_project` + `cfn-guard` receipts under `docs/analysis/_evidence/`
-- [ ] COST and SUS pillars scored (spine deferral closed)
-- [ ] `tests/test_prod_readiness.py` exhaustive; mutation ≥0.80 and changed-line coverage ≥0.90 achievable on `prod_readiness.py`
-- [ ] No regression: `pytest tests infra/tests` green; `docs/` stays untracked
-- [ ] `HUMAN-GATE: none` honored — no deploy, no live AWS calls
+- [ ] `docs/analysis/2026-05-16-compliance-prod-readiness.md` exists; all 7 pillars present; each pillar ≥1 six-field finding or an **evidence-citing** "checked, not a gap because X"; every gap six-field; no `TBD`/placeholder; every `R-*`/`GAP-*` cross-reference resolves; tokens in code-fences/prose excluded (checker exits 0)
+- [ ] `analyze_cdk_project` + `cfn-guard` receipts under `docs/analysis/_evidence/` are **real, non-empty, non-stub** (rule 8); `analyze-cdk-project.json` is valid JSON with a non-empty service inventory
+- [ ] COST and SUS pillars scored **against `_evidence/analyze-cdk-project.json`** (spine deferral closed with the receipt, not asserted)
+- [ ] Every cited `Evidence: file:line` was re-opened and confirms what the finding claims (author responsibility — the doc is not in the judged diff, no panel leg inspects it)
+- [ ] `tests/test_prod_readiness.py` exhaustive incl. code-fence/prose false-positive fixtures; mutation ≥0.80 and changed-line coverage ≥0.90 achievable on `prod_readiness.py`
+- [ ] No regression: `pytest tests infra/tests` green; the audit is gitignored-by-design and never staged (`git check-ignore` exits 0; nothing under `docs/` in `git diff --cached`)
+- [ ] `HUMAN-GATE: none` honored — no deploy, no live/billable AWS calls (synth + cfn-guard + analyze_cdk_project are all local/free)
 
 ---
 
@@ -459,9 +564,9 @@ git status --porcelain docs/    # only ?? lines
 |------|-----------|--------|------------|
 | Checker is thin glue → mutation/coverage leg fails | MED | HIGH | Make every validation rule a small pure function; one failing fixture per rule (Task 2 is the gate-critical task, not Task 5) |
 | Audit doc under `docs/` is gitignored → reviewers think nothing shipped | MED | MED | The judged diff is `prod_readiness.py`+tests (real code); the doc is a working-note deliverable per project convention (spine §8); state this explicitly in the audit header |
-| `analyze_cdk_project`/`cfn-guard` unavailable in the loop env | MED | MED | Citation-stub-and-continue (spine Task 2 pattern); a failed receipt is a documented caveat, the audit is still producible offline |
+| `analyze_cdk_project`/`cfn-guard` unavailable in the loop env | MED | HIGH | These run on local synth output (free) — there is no stub-and-pass: checker rule 8 fails any `STUB`/`FAILED-FETCH`/unparseable receipt, so an unproducible required receipt is a gate-blocking condition to surface, not a waved-through caveat. Only the `KbStack`/`RuntimeStack` full cfn-guard is legitimately deferred, recorded by citing the accepted `infra/README.md:162-180` justification |
 | Filename date drift (`2026-05-16` vs today) | LOW | HIGH | The verbatim PRD CHECK path is `2026-05-16`; Task 4 GOTCHA pins it; checker + regression leg both reference that exact path |
-| Editing the PRD inside the judged window reads as scope to a panel leg | LOW | MED | Restrict the PRD edit to the documented planning convention (Status `pending`→`in-progress` + plan link); never touch Status→`complete`/Progress Log (chokepoint-owned) |
+| Unnecessary judged-window PRD edit | LOW | MED | The only PRD edit (row→`in-progress` + plan link) was made once at plan time (commit 0c2361b); Task 7 is verify-only and makes no further PRD edit; Status→`complete`/Progress Log stay chokepoint-owned |
 
 ## Notes
 
