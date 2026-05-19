@@ -469,14 +469,19 @@ def validate(doc_path: str | Path) -> list[str]:
     if not p.is_file():
         return [f"prod-readiness audit not found: {p}"]
     base = p.parent
-    # Strip HTML comments first so a token hidden in `<!-- ... -->`
-    # (e.g. a faked analyze-receipt citation) never counts anywhere.
-    raw = _HTML_COMMENT.sub("", p.read_text(encoding="utf-8"))
-    # Fail closed on a comment marker that survived the single strip pass:
-    # a nested `<!-- a <!-- b --> tok -->` or an unterminated `<!-- tok`
-    # would otherwise leak `tok` into the scan. Mirrors the §3.1 raise.
-    if "<!--" in raw or "-->" in raw:
+    text = p.read_text(encoding="utf-8")
+    # The malformed-comment check runs on PROSE only (fenced code blocks
+    # and inline-code spans removed): a nested `<!-- a <!-- b --> tok -->`
+    # or an unterminated `<!-- tok` in real prose still fail-closes
+    # (mirrors the §3.1 raise), but an audit that *documents* a `<!--`
+    # marker inside a code example is not wrongly rejected — consistent
+    # with every other rule, which excludes fenced/inline content.
+    prose0 = _HTML_COMMENT.sub("", _strip_for_tokens(text))
+    if "<!--" in prose0 or "-->" in prose0:
         raise ValueError("malformed/nested/unterminated HTML comment")
+    # Strip well-formed comments so a token hidden in a prose
+    # `<!-- ... -->` never counts anywhere downstream.
+    raw = _HTML_COMMENT.sub("", text)
     stripped = _strip_fenced(raw)
     tokens_text = _strip_for_tokens(raw)
     declared = parse_catalog(stripped)

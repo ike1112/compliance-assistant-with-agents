@@ -344,6 +344,21 @@ def test_well_formed_single_html_comment_strips_and_validates(tmp_path):
     assert validate(_write(tmp_path, doc)) == []
 
 
+def test_comment_marker_in_code_fence_not_rejected(tmp_path):
+    # Documenting an HTML comment (even an unbalanced one) inside a code
+    # fence must NOT false-reject: fenced content is excluded from the
+    # malformed-comment check, like every other rule.
+    doc = _good_doc() + "\n```html\n<!-- example --> and <!-- unterminated\n```\n"
+    assert validate(_write(tmp_path, doc)) == []
+
+
+def test_comment_marker_in_inline_code_not_rejected(tmp_path):
+    doc = _good_doc().replace(
+        "## 1. Purpose & method\n",
+        "## 1. Purpose & method\nuse `<!-- like-this -->` to comment.\n")
+    assert validate(_write(tmp_path, doc)) == []
+
+
 def test_drive_relative_path_rejected(tmp_path):
     doc = _good_doc().replace(
         "  Source: E6-wa-lens-ops.md\n",
