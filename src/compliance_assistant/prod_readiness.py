@@ -1,31 +1,37 @@
 """Machine-check the evidence-backed prod-readiness audit document.
 
-The Phase 6 deliverable is a Well-Architected Lens audit
-(`docs/analysis/2026-05-16-compliance-prod-readiness.md`) plus saved
-`_evidence/` receipts. That document is git-untracked working notes, so it
-never enters the review-gate's judged diff — this checker, run by the gate's
-regression leg against the working tree, is the *only* automated guard on the
-audit's completeness. Every rule is therefore fail-CLOSED, never fail-open.
+The audit (`docs/analysis/2026-05-16-compliance-prod-readiness.md`) plus its
+saved `_evidence/` receipts are git-untracked working notes, so they never
+enter the review gate's judged diff — this checker, run by the gate's
+regression leg against the working tree, is the *only* automated guard on
+the audit's completeness. Every rule is therefore fail-CLOSED.
 
-It mechanizes the integrity checks the spine backlog ran by hand (its Task 5
-Step 3 six-field count and Task 7 Steps 2-3 placeholder + cross-reference
-scans), in the deterministic, stdlib-only, fail-closed style of
-`infra/stacks/slo_contract.py`: a malformed resource-catalog table raises
-`ValueError`; every other shortfall is a returned violation string. `main`
-exits non-zero (never a traceback) on any violation or a missing doc/receipt.
+It mechanizes, deterministically and stdlib-only, the checks the
+production-hardening spine backlog performed by hand: the per-gap
+six-field count, the placeholder scan, and the GAP/R cross-reference
+scans — in the fail-closed style of `infra/stacks/slo_contract.py`
+(a malformed resource-catalog table raises `ValueError`; every other
+shortfall is a returned violation string; `main` exits non-zero, never a
+traceback, on any violation or a missing doc/receipt).
 
-Grammar is pinned, not heuristic (a loose matcher breeds equivalent mutants):
-- a pillar section header is exactly ``^## <PILLAR>`` (optionally ``— title``);
-- the resource catalog is the pipe table under ``^### 3.1``;
+Pinned grammar (a loose matcher breeds equivalent mutants and fail-open
+holes):
+- a pillar section header is exactly ``^## <PILLAR>`` (optionally ``— x``);
+- the resource catalog is the pipe table under ``^### 3.1``; an R-id is
+  "declared" / catalog-excluded only when it sits in a table-ROW line of
+  that block (catalog prose does not declare or exclude);
 - the ranked backlog is the table under ``^## Ranked backlog``;
 - a finding header is ``^GAP-<PILLAR>-<n>``;
-- a Reasoning-Gate field is detected ONLY at line start (after indentation),
-  never by an unanchored substring search, and must occur exactly once.
-Fenced code blocks and inline-code spans are stripped before any token scan,
-so a GAP/R/TBD token that appears only inside an example block does not
-satisfy (or violate) a rule. Every cited ``_evidence/`` path is resolved
-through one resolver that enforces containment under the doc's
-``_evidence/`` directory (no traversal), non-empty, non-stub, JSON-valid.
+- a Reasoning-Gate field is detected ONLY at line start (after
+  indentation) and must occur exactly once;
+- a finding's ``Evidence:`` must carry at least one *checkable* pointer —
+  a `_evidence/<name>` citation that resolves, or a `path.ext:line` repo
+  reference — never bare prose; no ``Evidence:``/``Source:`` token may be
+  an escaping/absolute path (`..`, leading `/`, drive, UNC);
+- COST and SUS must cite the exact analyze-cdk-project receipt token.
+Fenced code blocks and inline-code spans are stripped before any token
+scan. Every `_evidence/` path is resolved through one resolver that
+enforces containment under the doc's `_evidence/` directory.
 """
 from __future__ import annotations
 
@@ -36,9 +42,6 @@ from pathlib import Path
 
 PILLARS: tuple[str, ...] = ("OPS", "SEC", "REL", "PERF", "COST", "SUS", "GENAI")
 
-# The six Reasoning-Gate fields every gap must defend itself on
-# (spine 2026-05-15-compliance-prod-hardening-spine.md:36-46). Order is the
-# canonical document order; detection is line-anchored, not positional.
 SIX_FIELDS: tuple[str, ...] = (
     "Risk:",
     "Evidence:",
@@ -57,16 +60,25 @@ _ANY_H2 = re.compile(r"^## .*$", re.MULTILINE)
 _ANY_H3 = re.compile(r"^### .*$", re.MULTILINE)
 _FINDING_HEADER = re.compile(rf"^GAP-(?:{_PILLAR_ALT})-\d+\b", re.MULTILINE)
 _GAP_TOKEN = re.compile(rf"\bGAP-(?:{_PILLAR_ALT})-\d+\b")
-# Strict R-id boundary: not preceded or followed by an id char, so
-# `R-AURORA` in prose is NOT a prefix-match of catalog `R-AURORA-VEC`.
+# Strict R-id boundary: `R-AURORA` in prose is not a prefix-match of a
+# catalog `R-AURORA-VEC`.
 _R_TOKEN = re.compile(r"(?<![A-Za-z0-9-])R-[A-Z0-9-]+(?![A-Za-z0-9-])")
 _R_FULL = re.compile(r"R-[A-Z0-9-]+")
-_EVIDENCE_CITE = re.compile(r"_evidence/[A-Za-z0-9._\-/]+")
+# A citation ends on an id char (no trailing sentence punctuation).
+_EVIDENCE_CITE = re.compile(r"_evidence/[A-Za-z0-9._\-/]*[A-Za-z0-9_\-/]")
+# A concrete repo reference: path.ext:line .
+_REPO_REF = re.compile(r"\b[\w.\-/]+\.\w+:\d+\b")
+# The COST/SUS receipt, exact token (rejects analyze-...json.bak / suffix).
+_ANALYZE_EXACT = re.compile(
+    r"(?<![\w./\-])_evidence/analyze-cdk-project\.json(?![\w.\-])")
+_ANALYZE_REL = "_evidence/analyze-cdk-project.json"
 _CFN_GUARD_CITE = re.compile(r"_evidence/cfn-guard-[A-Za-z0-9._\-]+\.txt")
-_ANALYZE_RECEIPT = "_evidence/analyze-cdk-project.json"
 _PLACEHOLDERS = ("TBD", "TODO", "XXX", "_(filled in Task")
 _STUB_SENTINELS = ("STUB", "FAILED-FETCH", "TBD")
 _NOT_A_GAP = re.compile(r"^\s*checked, not a gap because\b", re.MULTILINE)
+# An escaping / absolute / drive / UNC path token (never valid evidence).
+_ESCAPE = re.compile(r"(^|[\\/])\.\.([\\/]|$)")
+_ABSOLUTE = re.compile(r"^(/|\\\\|[A-Za-z]:[\\/])")
 
 
 @dataclass(frozen=True)
@@ -83,9 +95,6 @@ class Finding:
 
 
 def _strip_fenced(text: str) -> str:
-    """Remove ```-fenced code blocks (their lines could otherwise be parsed
-    as findings/tables). Inline code is kept so a backticked path inside a
-    field value still resolves and parses."""
     out: list[str] = []
     in_fence = False
     for line in text.splitlines():
@@ -98,17 +107,10 @@ def _strip_fenced(text: str) -> str:
 
 
 def _strip_for_tokens(text: str) -> str:
-    """For token-occurrence rules (placeholder / GAP >=2x / R-declared):
-    drop fenced blocks AND inline-code spans so a GAP/R/TBD token that
-    appears only inside example code is neither satisfied nor violated."""
     return re.sub(r"`[^`]*`", "", _strip_fenced(text))
 
 
 def _line_label(line: str) -> str | None:
-    """The Reasoning-Gate field a line *starts* (after indentation), or
-    None. Line-anchored on purpose: a value that merely mentions
-    ``Source:`` mid-sentence is not a field (closes the str.find collision
-    that let an empty terminal field be filled by borrowed text)."""
     s = line.lstrip()
     for lab in SIX_FIELDS:
         if s.startswith(lab):
@@ -116,9 +118,14 @@ def _line_label(line: str) -> str | None:
     return None
 
 
+def _cites(text: str) -> list[str]:
+    """Cited `_evidence/<x>` tokens, trailing sentence punctuation
+    trimmed (the regex already ends on an id char, this is belt-and-
+    braces)."""
+    return [c.rstrip(".,;:)") for c in _EVIDENCE_CITE.findall(text)]
+
+
 def _sections(stripped: str) -> dict[str, str]:
-    """Pillar token -> that ``## <PILLAR>`` section body (header to the next
-    ``## `` of any kind)."""
     bounds: list[tuple[int, int, str | None]] = []
     for m in _ANY_H2.finditer(stripped):
         pm = _PILLAR_HEADER.match(stripped, m.start())
@@ -132,25 +139,43 @@ def _sections(stripped: str) -> dict[str, str]:
     return out
 
 
+def _is_table_row(line: str) -> bool:
+    s = line.strip()
+    return s.startswith("|") and s.endswith("|")
+
+
 def _table_rows(block: str) -> list[list[str]]:
     rows: list[list[str]] = []
     for raw in block.splitlines():
-        line = raw.strip()
-        if not (line.startswith("|") and line.endswith("|")):
+        if not _is_table_row(raw):
             continue
-        cells = [c.strip() for c in line.strip("|").split("|")]
+        cells = [c.strip() for c in raw.strip().strip("|").split("|")]
         if all(set(c) <= {"-", ":"} for c in cells):
             continue  # |---|:--:| separator row
         rows.append(cells)
     return rows
 
 
-def _catalog_span(text: str) -> tuple[int, int] | None:
+def _catalog_block(text: str) -> str:
+    return _section_after(text, _CATALOG_HEADER, _ANY_H3)
+
+
+def _catalog_row_ranges(text: str) -> list[tuple[int, int]]:
+    """Absolute [start,end) char ranges of the §3.1 *table-row* lines only
+    (not the header span, not catalog prose). An R-token is catalog-
+    excluded iff it lies inside one of these — closes the prose escape."""
     m = _CATALOG_HEADER.search(text)
     if m is None:
-        return None
+        return []
     nxt = _ANY_H3.search(text, m.end())
-    return (m.start(), nxt.start() if nxt else len(text))
+    block_start, block_end = m.end(), nxt.start() if nxt else len(text)
+    ranges: list[tuple[int, int]] = []
+    pos = block_start
+    for line in text[block_start:block_end].splitlines(keepends=True):
+        if _is_table_row(line):
+            ranges.append((pos, pos + len(line)))
+        pos += len(line)
+    return ranges
 
 
 def _section_after(text: str, header: re.Pattern[str],
@@ -163,12 +188,9 @@ def _section_after(text: str, header: re.Pattern[str],
 
 
 def parse_catalog(stripped: str) -> set[str]:
-    """Declared R-* ids = column 1 of the table under ``### 3.1``.
-    Fail-closed: missing section / header-only / no valid R-id raises."""
     if not _CATALOG_HEADER.search(stripped):
         raise ValueError("resource catalog (### 3.1) section not found")
-    block = _section_after(stripped, _CATALOG_HEADER, _ANY_H3)
-    rows = _table_rows(block)
+    rows = _table_rows(_catalog_block(stripped))
     if len(rows) < 2:  # header row + >=1 data row
         raise ValueError("### 3.1 resource catalog has no data rows")
     declared: set[str] = set()
@@ -178,9 +200,8 @@ def parse_catalog(stripped: str) -> set[str]:
                 f"### 3.1 row needs >=3 cells (| R-ID | Resource | "
                 f"Source |), got {cells}"
             )
-        rid = cells[0]
-        if _R_FULL.fullmatch(rid):
-            declared.add(rid)
+        if _R_FULL.fullmatch(cells[0]):
+            declared.add(cells[0])
     if not declared:
         raise ValueError("### 3.1 declares no valid R-* ids")
     return declared
@@ -197,10 +218,6 @@ def _finding_blocks(body: str) -> list[tuple[str, str]]:
 
 
 def _parse_block_fields(block: str) -> tuple[dict[str, str], dict[str, int]]:
-    """Line-anchored field parse. A field begins only on a line that starts
-    (after indentation) with its label; its value runs to the next field
-    line. Each label's occurrence count is tracked so 'exactly one of each'
-    is enforceable (a duplicate or missing label is a violation)."""
     fields: dict[str, list[str]] = {k: [] for k in SIX_FIELDS}
     counts: dict[str, int] = {k: 0 for k in SIX_FIELDS}
     current: str | None = None
@@ -209,8 +226,7 @@ def _parse_block_fields(block: str) -> tuple[dict[str, str], dict[str, int]]:
         if lab is not None:
             counts[lab] += 1
             current = lab
-            rest = line.lstrip()[len(lab):]
-            fields[lab].append(rest)
+            fields[lab].append(line.lstrip()[len(lab):])
             continue
         if current is not None:
             fields[current].append(line)
@@ -227,10 +243,6 @@ def parse_findings(stripped: str) -> list[Finding]:
 
 
 def _resolve_receipt(base: Path, rel: str) -> str | None:
-    """Resolve a cited ``_evidence/<x>`` path fail-closed: it must stay
-    inside ``<doc dir>/_evidence`` (no traversal), exist, be non-empty,
-    carry no stub sentinel, and (for the analyze receipt) be non-empty
-    JSON. Returns a violation string or None."""
     ev_root = (base / "_evidence").resolve()
     target = (base / rel).resolve()
     if target != ev_root and ev_root not in target.parents:
@@ -250,6 +262,17 @@ def _resolve_receipt(base: Path, rel: str) -> str | None:
         if not data:
             return f"{rel}: empty service inventory"
     return None
+
+
+def _escaping_tokens(field_val: str) -> list[str]:
+    bad: list[str] = []
+    for tok in field_val.split():
+        t = tok.strip("`*()[],;")
+        if not t:
+            continue
+        if _ESCAPE.search(t) or _ABSOLUTE.match(t):
+            bad.append(t)
+    return bad
 
 
 def _rule_pillars_present(sections: dict[str, str]) -> list[str]:
@@ -279,9 +302,6 @@ def _rule_pillar_defended(
                 f"'checked, not a gap because' statement"
             )
             continue
-        # The dismissal unit: from the phrase to the next blank line /
-        # finding / section. It must itself carry a non-empty Evidence:
-        # or Source: field; a cited _evidence/ is resolved.
         unit_lines: list[str] = []
         for line in body[m.start():].splitlines():
             if unit_lines and (not line.strip()
@@ -301,27 +321,62 @@ def _rule_pillar_defended(
                 f"non-empty Source:/Evidence: reference"
             )
             continue
-        for rel in _EVIDENCE_CITE.findall(unit):
+        for rel in _cites(unit):
             err = _resolve_receipt(base, rel)
             if err:
                 out.append(f"pillar {p} dismissal: {err}")
     return out
 
 
-def _rule_cost_sus_evidence(findings: list[Finding]) -> list[str]:
+def _rule_evidence_anchored(
+    findings: list[Finding], base: Path
+) -> list[str]:
+    """Every finding's Evidence: must carry a checkable pointer (a
+    resolvable _evidence/ citation or a path.ext:line repo ref), and no
+    Evidence:/Source: token may be an escaping/absolute path."""
+    out: list[str] = []
+    for f in findings:
+        if f.counts["Evidence:"] == 1:
+            ev = f.fields["Evidence:"]
+            resolved = any(
+                _resolve_receipt(base, c) is None for c in _cites(ev)
+            )
+            if not (resolved or _REPO_REF.search(ev)):
+                out.append(
+                    f"{f.gap_id}: Evidence: has no checkable reference "
+                    f"(need a resolvable _evidence/ citation or a "
+                    f"path.ext:line repo ref)"
+                )
+        for fld in _EVIDENCE_FIELDS:
+            if f.counts[fld] != 1:
+                continue
+            for tok in _escaping_tokens(f.fields[fld]):
+                out.append(
+                    f"{f.gap_id}: {fld} has an escaping/absolute path "
+                    f"token {tok!r}"
+                )
+    return out
+
+
+def _rule_cost_sus_evidence(
+    findings: list[Finding], base: Path
+) -> list[str]:
     out: list[str] = []
     for p in ("COST", "SUS"):
-        pf = [f for f in findings if f.pillar == p]
-        ok = any(
-            f.counts["Evidence:"] == 1
-            and _ANALYZE_RECEIPT in f.fields["Evidence:"]
-            for f in pf
-        )
+        ok = False
+        for f in findings:
+            if f.pillar != p or f.counts["Evidence:"] != 1:
+                continue
+            if _ANALYZE_EXACT.search(f.fields["Evidence:"]) and \
+                    _resolve_receipt(base, _ANALYZE_REL) is None:
+                ok = True
+                break
         if not ok:
             out.append(
-                f"pillar {p}: needs a finding citing {_ANALYZE_RECEIPT} "
-                f"in its Evidence: field (spine deferral is closed with "
-                f"the receipt, not by assertion)"
+                f"pillar {p}: needs a finding citing the exact "
+                f"{_ANALYZE_REL} receipt in its Evidence: field "
+                f"(spine deferral is closed with the receipt, not by "
+                f"assertion)"
             )
     return out
 
@@ -369,11 +424,11 @@ def _rule_gap_twice(
 
 
 def _rule_r_declared(tokens_text: str, declared: set[str]) -> list[str]:
-    span = _catalog_span(tokens_text)
+    ranges = _catalog_row_ranges(tokens_text)
     used: set[str] = set()
     for m in _R_TOKEN.finditer(tokens_text):
-        if span is not None and span[0] <= m.start() < span[1]:
-            continue  # declared inside the §3.1 catalog (by position)
+        if any(a <= m.start() < b for a, b in ranges):
+            continue  # inside a §3.1 catalog table row (by position)
         used.add(m.group(0))
     return [
         f"{rid}: used but not declared in the ### 3.1 catalog"
@@ -384,12 +439,10 @@ def _rule_r_declared(tokens_text: str, declared: set[str]) -> list[str]:
 def _rule_receipts_real(base: Path, stripped: str,
                         findings: list[Finding]) -> list[str]:
     out: list[str] = []
-    for rel in sorted(set(_EVIDENCE_CITE.findall(stripped))):
+    for rel in sorted(set(_cites(stripped))):
         err = _resolve_receipt(base, rel)
         if err:
             out.append(err)
-    # SEC and REL must each cite a real, resolvable cfn-guard receipt in a
-    # finding's Evidence:/Source: field — not a bare 'cfn-guard-' substring.
     for p in ("SEC", "REL"):
         cited: list[str] = []
         for f in findings:
@@ -429,7 +482,8 @@ def validate(doc_path: str | Path) -> list[str]:
     v: list[str] = []
     v += _rule_pillars_present(sections)
     v += _rule_pillar_defended(sections, findings, base)
-    v += _rule_cost_sus_evidence(findings)
+    v += _rule_evidence_anchored(findings, base)
+    v += _rule_cost_sus_evidence(findings, base)
     v += _rule_six_fields(findings)
     v += _rule_no_placeholder(tokens_text)
     v += _rule_gap_twice(findings, tokens_text)
