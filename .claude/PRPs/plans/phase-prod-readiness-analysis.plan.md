@@ -14,9 +14,15 @@
 > wrong (`.gitignore:7` `docs/*`) — restated as the correct gitignored-and-
 > not-staged invariant in Validation/Level 3/Task 6/Task 7/Acceptance;
 > (MAJOR) Task 7 reduced to verify-only since the PRD row was already set
-> `in-progress` at plan time. The Validation section remains a verbatim
-> reproduction of Phase 6's PRD `CHECK:` items and was **not** altered by this
-> revision.
+> `in-progress` at plan time. A second bounded re-review then closed three
+> residual contradictions: COST/SUS must cite `analyze-cdk-project.json`
+> specifically (not `synth-manifest.txt`); SEC/REL must cite a
+> `cfn-guard-*.txt` receipt so rule 8 covers it (closing the uncited-empty
+> bypass) and the regression command now asserts each guard receipt is
+> non-empty; the rule-7 false-positive fixture was corrected (an `R-*` only
+> in a stripped code fence is a non-occurrence, not a rule-7 hit). The
+> Validation section remains a verbatim reproduction of Phase 6's PRD
+> `CHECK:` items and was **not** altered by any revision.
 
 ## Summary
 
@@ -265,12 +271,12 @@ content, and is strengthened accordingly:
 2. `PYTHONPATH=src python -m compliance_assistant.prod_readiness docs/analysis/2026-05-16-compliance-prod-readiness.md` — exits 0 iff ALL hold:
    - all 7 pillars (`OPS SEC REL PERF COST SUS GENAI`) present as sections matching the literal grammar pinned in Task 1;
    - each pillar has ≥1 complete six-field finding **or** an explicit `checked, not a gap because X` line **that itself carries a `Source:`/`Evidence:` reference** (no evidence-free dismissal);
-   - **COST and SUS** sections each cite `_evidence/analyze-cdk-project.json` (or `_evidence/synth-manifest.txt`) in an `Evidence:` field — the spine's deferral of these two pillars is closed only with the now-available receipt, never by a bare "checked, not a gap";
+   - **COST and SUS** sections each cite `_evidence/analyze-cdk-project.json` in an `Evidence:` field (the service-inventory receipt; `synth-manifest.txt` is not a substitute) — the spine's deferral of these two pillars is closed only with the cost/sustainability receipt, never by a bare "checked, not a gap"; **SEC and REL** each cite a `_evidence/cfn-guard-*.txt` receipt;
    - every `GAP-*` has all six fields non-empty; no `TBD`/`TODO`/`XXX`/`_(filled in Task N)_`;
    - every `GAP-<PILLAR>-NN` appears ≥2× (inventory **and** ranked table), counting only real content — tokens inside fenced code blocks / inline-code spans / prose do **not** count;
    - every `R-*` token used anywhere resolves to a declared row in the doc's §3.1 catalog table; unknown `R-*` = violation;
    - every `_evidence/*` path the audit cites exists, is non-empty, and is non-placeholder (no `STUB`/`FAILED-FETCH`/`TBD` sentinel); `analyze-cdk-project.json` parses as JSON and contains a non-empty service inventory.
-3. `test -f docs/analysis/_evidence/analyze-cdk-project.json && python -c "import json,sys; d=json.load(open('docs/analysis/_evidence/analyze-cdk-project.json')); sys.exit(0 if d else 1)" && ls docs/analysis/_evidence/cfn-guard-*.txt && ! grep -rl 'STUB\|FAILED-FETCH' docs/analysis/_evidence/`
+3. `test -s docs/analysis/_evidence/analyze-cdk-project.json && python -c "import json,sys; d=json.load(open('docs/analysis/_evidence/analyze-cdk-project.json')); sys.exit(0 if d else 1)" && for f in docs/analysis/_evidence/cfn-guard-*.txt; do test -s "$f" || exit 1; done && ! grep -rl 'STUB\|FAILED-FETCH' docs/analysis/_evidence/` — every cfn-guard receipt non-empty (not just present)
 4. `PYTHONPATH=src python -m pytest tests/test_prod_readiness.py -q` — all pass
 5. Baseline / untracked invariant (no regression): `PYTHONPATH=src python -m pytest tests infra/tests -q` green; the audit is correctly **gitignored, not staged** — `git check-ignore -q docs/analysis/2026-05-16-compliance-prod-readiness.md` exits 0 (path is ignored by design) **and** `git diff --cached --name-only` lists nothing under `docs/`. (`git status --porcelain docs/` is *empty* under the current `.gitignore`; an implementer must NOT un-ignore `docs/` to make work "visible" — that would violate prd.md:74-75.)
 
@@ -320,9 +326,11 @@ Execute in order. Each task ends with its VALIDATE command.
        also carries a `Source:` or `Evidence:` reference** (no evidence-free
        dismissal — Codex MAJOR / code-reviewer MAJOR-A)
     3. **COST and SUS specifically**: their section must cite
-       `_evidence/analyze-cdk-project.json` or `_evidence/synth-manifest.txt`
-       in an `Evidence:` field — the spine deferred these two *only* for lack
-       of a CDK; closing them now requires the receipt, not prose
+       `_evidence/analyze-cdk-project.json` in an `Evidence:` field (the
+       service-inventory receipt — `synth-manifest.txt` is **not** a
+       substitute for COST/SUS; it is only a substrate manifest). The spine
+       deferred these two *only* for lack of a CDK; closing them now requires
+       the cost/sustainability receipt, not prose
     4. every parsed `GAP-*` has all six `SIX_FIELDS` present & non-empty
     5. no `TBD`/`TODO`/`XXX`/`_(filled in Task N)_` in stripped content
     6. every `GAP-<PILLAR>-NN` occurs ≥2× across {pillar-section finding
@@ -334,7 +342,11 @@ Execute in order. Each task ends with its VALIDATE command.
     8. **evidence receipts are real**: every path in `cited_evidence` exists
        relative to the doc dir, is non-empty, and contains no
        `STUB`/`FAILED-FETCH`/`TBD` sentinel; if `analyze-cdk-project.json`
-       is cited it must `json.loads` and be non-empty (Codex BLOCKER)
+       is cited it must `json.loads` and be non-empty. **The SEC and REL
+       sections MUST each cite a `_evidence/cfn-guard-*.txt` receipt** so the
+       guard output enters `cited_evidence` and this non-empty/non-stub check
+       covers it — closing the "uncited empty cfn-guard receipt" bypass
+       (Codex BLOCKER + re-review residual 1)
   - `main(argv=None) -> int` — resolves the path arg, prints each violation
     to stderr, returns `1` if any violation (or the doc/required receipt is
     missing) else `0`; `raise SystemExit(main())` under `__main__`. This IS
@@ -367,10 +379,14 @@ Execute in order. Each task ends with its VALIDATE command.
   traceback; cited `_evidence/x.json` absent; cited receipt containing
   `STUB`; `analyze-cdk-project.json` not valid JSON. **Plus the
   false-positive fixtures (Codex MAJOR Q1 / code-reviewer MAJOR-C):** a
-  `GAP-*` token that appears twice but *both inside a fenced code block* must
-  still fail rule 6 (prose/code excluded); an `R-*` mentioned only in a code
-  fence must still fail rule 7; a `TBD` inside a code fence is **not** a
-  rule-5 violation (stripped). Plus: `GOOD` passes (`validate` == []),
+  `GAP-*` whose only two occurrences are *both inside a fenced code block*
+  must still fail rule 6 (code/prose excluded ⇒ 0 counted occurrences). The
+  rule-7 violation fixture is an `R-*` **used in a real finding but absent
+  from §3.1** (→ violation), paired with its inverse: an `R-*` appearing
+  **only** inside a code fence is stripped, so it is *not* "used outside
+  §3.1" and is therefore **not** a rule-7 violation (a non-occurrence,
+  parallel to the TBD-in-fence case). A `TBD` inside a code fence is likewise
+  **not** a rule-5 violation (stripped). Plus: `GOOD` passes (`validate` == []),
   `main(GOOD)` returns 0, parser on a malformed §3.1 table raises
   `ValueError`.
 - **GOTCHA**: this file's thoroughness is the gate. Every branch in
@@ -416,7 +432,7 @@ Execute in order. Each task ends with its VALIDATE command.
   justification in `infra/README.md:162-180`** (a real, reviewed prior
   decision) — not by an empty stub. WA-Lens pillar `Source:` references reuse
   the spine's existing `_evidence/E6-wa-lens-*.md`; only fetch one if absent.
-- **VALIDATE**: `test -s docs/analysis/_evidence/analyze-cdk-project.json && python -c "import json;json.load(open('docs/analysis/_evidence/analyze-cdk-project.json'))" && ls docs/analysis/_evidence/cfn-guard-*.txt docs/analysis/_evidence/synth-manifest.txt && ! grep -rl 'STUB\|FAILED-FETCH' docs/analysis/_evidence/`
+- **VALIDATE**: `test -s docs/analysis/_evidence/analyze-cdk-project.json && python -c "import json;json.load(open('docs/analysis/_evidence/analyze-cdk-project.json'))" && test -s docs/analysis/_evidence/synth-manifest.txt && for f in docs/analysis/_evidence/cfn-guard-*.txt; do test -s "$f" || exit 1; done && ! grep -rl 'STUB\|FAILED-FETCH' docs/analysis/_evidence/`
 
 ### Task 4: Write the audit skeleton + §3.1 resource catalog
 
