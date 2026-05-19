@@ -40,7 +40,7 @@ Each phase is an independent sub-project with its own prp-plan and autonomous va
 | 3 | RAG evaluation harness — retrieval / generation / task-level gold sets + LLM-as-judge + CI gate; decides the real chunking value | 1 | complete | `.claude/PRPs/plans/phase-rag-evaluation-harness.plan.md` | GAP-GENAI-02, GAP-GENAI-03 |
 | 4 | AgentCore Runtime IaC — host the crew (8h, scale-to-zero); AgentCore IaC maturity verified vs current docs; Fargate fallback documented | 1 (release-gated by 3) | complete | `.claude/PRPs/plans/phase-agentcore-runtime-iac.plan.md` | GAP-REL-01, GAP-PERF-01 |
 | 5 | Observability + SLOs — AgentCore Observability wiring, model-invocation logging, `docs/SLOs.md`, composite alarms, verbose redaction | 1, 4 | complete | `.claude/PRPs/plans/phase-observability-slos.plan.md` | GAP-OPS-02, GAP-SEC-03, GAP-OPS-03 |
-| 6 | Evidence-backed prod-readiness analysis — full WA-Lens audit against the synthesized stack (cfn-guard, analyze_cdk_project, all 7 pillars) | 2, 3, 4, 5 | pending | _(not yet planned)_ | (audit deliverable; scores COST/SUS deferred from the spine) |
+| 6 | Evidence-backed prod-readiness analysis — full WA-Lens audit against the synthesized stack (cfn-guard, analyze_cdk_project, all 7 pillars) | 2, 3, 4, 5 | in-progress | `.claude/PRPs/plans/phase-prod-readiness-analysis.plan.md` | (audit deliverable; scores COST/SUS deferred from the spine) |
 
 **Parallelism:** Phases 1 and 2 have no dependencies on each other and may run concurrently in separate worktrees.
 
