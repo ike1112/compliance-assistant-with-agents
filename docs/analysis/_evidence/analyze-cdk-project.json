@@ -1,0 +1,27 @@
+{
+  "tool": "mcp__aws-pricing-mcp-server__analyze_cdk_project",
+  "project_path": "infra",
+  "generated": "2026-05-19T02:53Z",
+  "billable": false,
+  "status": "success",
+  "services": [
+    "bedrock",
+    "iam",
+    "ssm",
+    "ec2",
+    "kms",
+    "lambda",
+    "rds",
+    "s3",
+    "s3_notifications",
+    "cloudwatch",
+    "logs",
+    "bedrockagentcore"
+  ],
+  "cost_sustainability_signals": {
+    "no_opensearch": "service inventory contains no 'opensearch' entry — the KB vector store is Aurora Serverless v2 pgvector (rds), not a provisioned OpenSearch cluster; eliminates the standing OpenSearch cost/energy floor",
+    "aurora_serverless_v2": "rds present; Aurora Serverless v2 with MinCapacity 0 (scale-to-zero) per infra/stacks/kb_stack.py and infra/tests assertions — no idle vector-store spend/energy",
+    "agentcore_runtime": "bedrockagentcore present — managed scale-to-zero runtime (no always-on Fargate/EC2 idle), arm64 per the runtime stack",
+    "serverless_posture": "lambda + bedrockagentcore + Aurora-Serverless-v2 + S3 — no provisioned compute kept warm; aligns COST + SUS"
+  }
+}

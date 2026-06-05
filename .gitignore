@@ -3,12 +3,28 @@
 __pycache__/
 .DS_Store
 output/
-analysis/
+
+# analysis/ holds the original AWS-sample artifacts under _legacy/
+# (tracked for provenance — see analysis/_legacy/README.md). Any other
+# analysis/ content is local scratch / one-off output and stays untracked.
+analysis/*
+!analysis/_legacy
+!analysis/_legacy/**
+
+# docs/ is mostly human-only working notes. Named deliverables are
+# tracked explicitly: the SLO contract (Phase 5 alarms synthesize from
+# it), the eval doc (Phase 3 gate references it), and the WA-Lens
+# production-readiness audit + its evidence receipts (Phase 6
+# deliverable). Everything else under docs/ stays untracked.
 docs/*
-# docs/ is human-only scratch EXCEPT the SLO contract, which the
-# observability stack synthesizes alarms from and the infra test
-# cross-checks — it must be a tracked, reproducible build input.
 !docs/SLOs.md
+!docs/evals.md
+!docs/analysis
+docs/analysis/*
+!docs/analysis/2026-05-16-compliance-prod-readiness.md
+!docs/analysis/_evidence
+!docs/analysis/_evidence/**
+
 .env
 .env.*
 !.env.example

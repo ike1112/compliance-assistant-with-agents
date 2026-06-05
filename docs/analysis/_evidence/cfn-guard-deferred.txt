@@ -1,0 +1,29 @@
+# cfn-guard receipt — KB / Runtime / Observability stacks (operator-deferred)
+Generated: 2026-05-19T02:54Z
+Ruleset: aws-security
+Result: full cfn-guard run is an accepted operator pre-deploy step
+
+Accepted Reasoning-Gate justification (infra/README.md:160-217)
+---------------------------------------------------------------
+ComplianceKbStack, ComplianceRuntimeStack, and ComplianceObservabilityStack
+defer their *full* cfn-guard run to operator pre-deploy. The reviewed
+justification (infra/README.md:162-217) is that the autonomous loop
+environment cannot reliably stream the large templates (the KB template
+alone is ~38 KB) into the content-only compliance MCP. The accepted in-loop
+substitute, already part of every prior phase's green:
+
+- cfn-lint: 0 errors on every template (region-scoped to us-east-1 for the
+  GA AgentCore Runtime resource; infra/README.md:145-158).
+- Targeted synth-time assertions in infra/tests: all S3 buckets block
+  public access and are KMS-encrypted + versioned + TLS-only + access
+  logged; Aurora storage encrypted with MinCapacity 0; every IAM policy
+  resource-scoped (no Resource:"*"); no OpenSearch; AgentCore Runtime
+  resource shape, scoped bedrock:InvokeAgent, no NAT.
+
+Re-confirmation
+---------------
+Fresh `cdk synth --all` 2026-05-19 (synth-manifest.txt) emits all three
+templates; the infra/tests assertions above still pass (regression leg).
+This receipt records the accepted deferral and its in-loop coverage — the
+full cfn-guard stream remains the documented operator pre-deploy gate, not
+a result fabricated here.

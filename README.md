@@ -1,204 +1,141 @@
-# Compliance Assistant
+# Compliance Assistant — production-hardened reference sample
 
-### Automate Compliance With Bedrock and CrewAI
+A CrewAI + Amazon Bedrock compliance-research assistant that turns a regulation
+topic (e.g. *"Latest PCI DSS requirements for trading platforms"*) into a
+cited report. The project started as an AWS sample and was production-hardened
+against the [AWS Well-Architected GenAI Lens](https://docs.aws.amazon.com/wellarchitected/latest/generative-ai-lens/generative-ai-lens.html)
+across six phases (IaC, config hardening, RAG evals, runtime IaC,
+observability, and a final evidence-backed audit). For the engineering
+narrative, see [ARCHITECTURE.md](ARCHITECTURE.md). For the WA-Lens audit
+itself, see [docs/analysis/2026-05-16-compliance-prod-readiness.md](docs/analysis/2026-05-16-compliance-prod-readiness.md).
 
-Welcome to the **Compliance Assistant** project, powered by [Amazon Bedrock](https://aws.amazon.com/bedrock/) and [crewAI](https://crewai.com). This is a solution for automating some of the most tedious regulatory compliance processes using multi-agent AI systems. This solution serves as a practical starting point for organizations looking to enhance their compliance processes with AI capabilities, demonstrating how intelligent systems could complement and streamline existing compliance workflows. This solution’s architecture can be adapted to help healthcare systems, enable manufacturers to maintain ISO safety documentation, and assist retailers in monitoring FTC advertising regulations or in other segments such as legal, finance, or human resources, offering wide- ranging potential for process automation and efficiency gains across various industries.
+## Current status
 
+The work was done as **synth-time IaC plus offline tests** — every CHECK in
+the [PRD](.claude/PRPs/compliance-prod-hardening.prd.md) is autonomous and
+deterministic (no AWS spend). The billable `cdk deploy` is gated as an
+explicit operator decision, not an autonomous step, because the deployed
+stack runs Aurora pgvector, Bedrock Agent, KB ingestion, and AgentCore
+Runtime — all of which carry real cost. See the *HUMAN-GATE* rows in the PRD.
 
-## 📌 Table of Contents
+| Layer | What ships | Verified by |
+|------|------------|-------------|
+| Bedrock knowledge layer (KB, Aurora pgvector, Agent + Guardrail) | CDK synth → 5 templates | [`infra/stacks/kb_stack.py`](infra/stacks/kb_stack.py), [`infra/stacks/agent_stack.py`](infra/stacks/agent_stack.py), [`infra/tests/`](infra/tests/) (cfn-guard COMPLIANT) |
+| Config & secrets | Fail-fast startup validation; env-gated verbosity | [`src/compliance_assistant/startup.py`](src/compliance_assistant/startup.py), [`tests/test_startup.py`](tests/test_startup.py) |
+| RAG evaluation harness | Offline gold-set gate (PCI DSS), LLM-as-judge | [`tests/evals/`](tests/evals/) — `pytest tests/evals -m gate` |
+| AgentCore Runtime IaC | Runtime + ECR stacks, async pre-start shim | [`infra/stacks/runtime_stack.py`](infra/stacks/runtime_stack.py), [`infra/stacks/runtime_ecr_stack.py`](infra/stacks/runtime_ecr_stack.py) |
+| Observability + SLOs | EMF tracing, redaction, SLO-anchored alarms | [`src/compliance_assistant/tracing.py`](src/compliance_assistant/tracing.py), [`tests/test_tracing.py`](tests/test_tracing.py), [`docs/SLOs.md`](docs/SLOs.md), [`infra/stacks/observability_stack.py`](infra/stacks/observability_stack.py) |
+| WA-Lens audit | All 7 pillars, 6-field Reasoning-Gate findings | [`docs/analysis/2026-05-16-compliance-prod-readiness.md`](docs/analysis/2026-05-16-compliance-prod-readiness.md), receipts under [`docs/analysis/_evidence/`](docs/analysis/_evidence/) |
+| Quality gate (meta) | 6-leg adversarial review panel with mutation + coverage floors | [`review_gate/`](review_gate/), [`tests/review_gate/`](tests/review_gate/) |
 
-- [Compliance Assistant](#compliance-assistant)
-    - [Automate Compliance With Bedrock and CrewAI](#automate-compliance-with-bedrock-and-crewai)
-  - [📌 Table of Contents](#-table-of-contents)
-  - [📚 Background Information](#-background-information)
-  - [💻 Demo](#-demo)
-  - [🎯 What This Solution Does](#-what-this-solution-does)
-    - [Key Technologies Used](#key-technologies-used)
-  - [📋 Prerequisites](#-prerequisites)
-    - [AWS Account Requirements](#aws-account-requirements)
-    - [Technical Requirements](#technical-requirements)
-  - [🚀 Installation](#-installation)
-    - [Step 1: Install CrewAI](#step-1-install-crewai)
-    - [Step 2: Install Dependencies](#step-2-install-dependencies)
-  - [⚙️ Customization](#️-customization)
-    - [Define Your LLM.](#define-your-llm)
-    - [Define your compliance challenge or Topic](#define-your-compliance-challenge-or-topic)
-    - [Define your Bedrock Agent Details](#define-your-bedrock-agent-details)
-    - [Configure Agents and Tasks](#configure-agents-and-tasks)
-  - [🏃 Running the Project](#-running-the-project)
-  - [🤖 Understanding Your Crew](#-understanding-your-crew)
-  - [📋 Additional Documentation](#-additional-documentation)
-  - [📄 License](#-license)
+**What is NOT deployed:** none of the above runs on real AWS in this repo.
+Every claim above is verified at synth time and by tests, not by a live
+CloudWatch dashboard. The HUMAN-GATE deploy is intentional cost discipline,
+not an incomplete phase — see the *Engineering posture* section below.
 
+## Quick start (local validation, no AWS spend)
 
-## 📚 Background Information
-
-Financial institutions operate in an environment where regulatory compliance is both critical and increasingly complex. Traditional approaches to managing compliance requirements—such as manual review of regulations, policy creation, and implementation of controls—are time-consuming, prone to human error, and struggle to keep pace with rapidly evolving regulatory landscapes. Compliance Assistant helps compliance teams to automate some of the most tedious activities such as Updating Policies and Standards based on changes in regulatory frameworks, implementing technical controls etc. This solution leverages generative AI and multi-agent systems to transform compliance management, offering:
-- Automated regulatory monitoring
-- Intelligent policy creation
-- Streamlined control implementation
-- Real-time compliance guidance
-
-## 💻 Demo
-
-![demo](images/compliance-assistant-output.gif)
-
-
-## 🎯 What This Solution Does
-
-This solution demonstrates how to build an intelligent, automated compliance management system that leverages multiple AI agents working in symphony to achieve defined outcomes. This patten can be leveraged to:
-
-- ✅ Continuously monitor and analyze regulatory changes
-
-- ✅ Transform regulatory requirements into organizational policies
-
-- ✅ Design and implement technical controls
-
-- ✅ Maintain compliance documentation
-
-- ✅ Provide real-time guidance on compliance matters
-
-🏗️ Architecture
-
-![architecture](images/Blog-CrewAI.png)
-
-### Key Technologies Used
-
-
--  **Amazon Bedrock**: Foundation models and RAG capabilities
-
--  **CrewAI**: Multi-agent orchestration framework
-
--  **Amazon Bedrock Knowledge Bases**: Current, authoritative compliance information
-
--  **Amazon Bedrock Guardrails**: Safety controls for responsible AI use
-
--  **Amazon Bedrock Agents**: Memory retention across interactions and integrates Knowledge Bases and Guardrails
-
-## 📋 Prerequisites
-
-
-### AWS Account Requirements
-
-- Active AWS account with appropriate permissions
-
-- Access to Amazon Bedrock models in your desired region
-
-
-### Technical Requirements
-
-- You will be executing the application form your local/shared Linux environment.
-
-- Python 3.10 or later
-
-- Access to Amazon Bedrock models enabled
-
-
-Ensure you have **Python >=3.10 installed on your system. This project uses [UV](https://docs.astral.sh/uv/) for dependency management and package handling, offering a seamless setup and execution experience.
-
-
-## 🚀 Installation
-
-### Step 1: Install CrewAI
-
-
-If you haven't already, install CrewAI and uv:
+Requires Python 3.10+ and Node (for the CDK CLI).
 
 ```bash
+# 1. Install
+pip install uv
+uv sync                                # runtime deps
+uv sync --extra infra                  # + CDK toolchain for synth
+uv sync --extra gate                   # + mutation/coverage for the review gate
 
-pip  install  uv  crewai
+# 2. Synthesize the full stack (5 templates, no deploy)
+cd infra
+npx aws-cdk@latest synth --all -q
+cd ..
 
+# 3. Run the full test suite (Python + CDK assertion tests)
+PYTHONPATH=src python -m pytest tests infra/tests -q
+
+# 4. Run the offline RAG eval gate
+PYTHONPATH=src python -m pytest tests/evals -m gate -q
 ```
 
+All four commands should exit 0 on a clean checkout. The eval gate runs
+deterministically against recorded fixtures — no Bedrock calls are made.
+Live re-recording is opt-in via `-m live` (see [`tests/evals/test_live.py`](tests/evals/test_live.py)).
 
-### Step 2: Install Dependencies
+## Engineering posture (the non-obvious choices)
 
-Navigate to your project directory and install the dependencies:
+A few decisions are worth surfacing because they tend to look like gaps but
+are deliberate:
 
+- **Synth + test ≠ deploy.** The PRD's `CHECK:` items are autonomous and
+  free; `HUMAN-GATE:` items are operator-gated because they cost money.
+  An autonomous loop that runs `cdk deploy` would burn through cloud spend
+  and silently drift the stack. The line is drawn at "anything the
+  CloudFormation API mutates in real AWS."
+- **`docs/` is mostly working notes.** Only named deliverables are tracked
+  (SLO contract, eval contract, the WA-Lens audit + receipts). The original
+  spec and plan documents stay untracked because they have been superseded
+  by code that is the source of truth. See `.gitignore` for the exact list.
+- **Phase 6 closed by owner-acceptance, not gate PASS.** The 6-leg quality
+  gate returned FAIL on a contested finding from the codex adversarial
+  leg; the other five legs (security, code review, test-engineer mutant
+  sweep, regression, mutation floor 0.881) refuted it, and the owner
+  adjudicated and overrode with a written defense in the PRD Progress
+  Log. The dissenting record is preserved in
+  `.claude/review-gate.verdicts.json`. This is in `ARCHITECTURE.md` because
+  the override is mature engineering judgment, not a hidden gap.
+- **The 6-leg quality gate is part of the system, not external CI.**
+  `review_gate/` ran on every phase and is itself tested
+  ([`tests/review_gate/`](tests/review_gate/)). It is what made the
+  multi-phase autonomous work credible.
+
+## Repository layout
+
+```
+infra/              CDK stacks (kb, agent, runtime, ecr, observability)
+infra/tests/        Python assertion tests on synthesized templates
+src/compliance_assistant/
+                    Crew (agents.yaml, tasks.yaml, crew.py, main.py),
+                    tracing, redaction, startup validation, citations
+tests/              Top-level Python tests (startup, citations, tracing,
+                    redaction, agent_ids, prod_readiness)
+tests/evals/        RAG evaluation harness: gold set, retrieval +
+                    generation + task metrics, judge prompts, CI gate
+tests/review_gate/  Tests covering the quality-gate machine itself
+review_gate/        Quality-gate orchestration (panel, mutation, diff,
+                    aggregation, provenance, PRD updates)
+docs/               Tracked: SLOs.md, evals.md, analysis/ (the WA-Lens
+                    audit + evidence). Other files are local working
+                    notes (gitignored).
+analysis/_legacy/   Pre-hardening AWS-sample artifacts, kept for
+                    provenance. See its own README.
+.claude/PRPs/       PRD + per-phase plans (tracked). Internal artifacts
+                    (ralph archives, findings) are also here.
+```
+
+## Configuring + running the crew
+
+The crew itself is a CrewAI sequential pipeline (researcher → writer →
+designer) that delegates retrieval to a Bedrock Agent. Configuration is
+read from `.env` with fail-fast validation
+([`src/compliance_assistant/startup.py`](src/compliance_assistant/startup.py)) —
+the application refuses to start with placeholder values, missing IDs, or
+invalid models.
+
+After deploy, the Bedrock Agent/KB IDs are published to SSM and read at
+startup; you do **not** copy them into `.env` manually (that was the
+click-ops baseline; Phase 1 replaced it). See
+[`.env.example`](.env.example) for the contract.
+
+To run the crew (assumes a deployed stack and valid AWS credentials):
 
 ```bash
-
-crewai  install
-
+crewai run
 ```
 
+The crew writes to `output/1-requirements.md` (research),
+`output/2-report.md` (full report — final line is a `## Sources` block
+with citation IDs), and `output/3-solution.md` (the proposed AWS
+control implementation).
 
-## ⚙️ Customization
+## License
 
-
-### Define Your LLM. 
-
-
-Add your Preferred LLM Model into the `.env` file to enable API access.
-
-We will be using Amazon Nova models via Amazon Bedrock
-
-```bash
-MODEL=bedrock/us.amazon.nova-pro-v1:0
-
-```
-
-### Define your compliance challenge or Topic 
-
-Define your Topic as a parameter into the `.env` file 
-
-```bash
-TOPIC='Latest PCI DSS requirements for Trading Platforms'
-
-```
-
-### Define your Bedrock Agent Details  
-
-Define identifier for your Bedrock agent in the `.env` file 
-
-```bash
-AGENT_ID='replace-with-your-amazon-bedrock-Agent-id'
-AGENT_ALIAS_ID='replace-with-your-amazon-bedrock-Agent-alias'
-
-```
-
-### Configure Agents and Tasks
-
-
--  `config/agents.yaml` defines your agents.
-
--  `config/tasks.yaml` defines your tasks.
-
--  `crew.py` Executes the Crew
-
--  `main.py` starting point
-  
-Feel free to modify the agents and tasks based on your specific requirements
-
-
-## 🏃 Running the Project
-
-To kickstart your AI agents and begin task execution, run the following command from the root folder of your project:
-
-```bash
-
-crewai  run
-
-```
-
-This initializes the Crew, assembling the agents and assigning them tasks as defined in your configuration. Each agent writes its output to the `output/` folder so every stage can be checked: `output/1-requirements.md` (research), `output/2-report.md` (full report), and `output/3-solution.md` (the final AWS solution).
-
-  
-
-## 🤖 Understanding Your Crew
-
-
-The **Compliance Assistant** crew consists of multiple AI agents, each with unique roles, goals, and tools. These agents collaborate on tasks defined in `config/tasks.yaml`, leveraging their collective skills to achieve complex objectives. The `config/agents.yaml` file outlines the capabilities and configurations of each agent in your crew.
-
-
-## 📋 Additional Documentation
-
-
-- 📖 Check our [documentation on Amazon Bedrock](https://aws.amazon.com/bedrock/)
-
-- 🤖 [Amazon bedrock Agents](https://aws.amazon.com/bedrock/agents/)
-  
-
-## 📄 License
-
-This library is licensed under the MIT-0 License. See the LICENSE file.
+MIT-0. See [LICENSE](LICENSE).

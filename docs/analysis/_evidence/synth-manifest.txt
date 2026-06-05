@@ -1,0 +1,10 @@
+# cdk synth --all receipt
+Generated: 2026-05-19T02:51:52Z
+Command: cd infra && npx --yes aws-cdk@latest synth --all -q  (exit 0; local synth, non-billable, no deploy)
+
+Synthesized stacks / templates:
+- ComplianceAgentStack.template.json (6501 bytes)
+- ComplianceKbStack.template.json (38154 bytes)
+- ComplianceObservabilityStack.template.json (17722 bytes)
+- ComplianceRuntimeEcrStack.template.json (2885 bytes)
+- ComplianceRuntimeStack.template.json (11643 bytes)

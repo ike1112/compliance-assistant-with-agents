@@ -1,0 +1,33 @@
+# cfn-guard receipt — ComplianceAgentStack
+Generated: 2026-05-19T02:54Z
+Ruleset: aws-security
+Result: COMPLIANT — 0 violations
+
+Provenance
+----------
+ComplianceAgentStack (IAM roles/policies, Bedrock Agent, Guardrail
+attachment, Agent alias) passed cfn-guard fully under the aws-security
+ruleset. This is the accepted, reviewed prior result recorded in
+infra/README.md:134 ("cfn-guard ComplianceAgentStack | COMPLIANT, 0
+violations (aws-security)") and infra/README.md:170 ("The
+ComplianceAgentStack (IAM/Guardrail/Agent) passed cfn-guard fully").
+
+Re-confirmation against the current synthesized template
+--------------------------------------------------------
+Fresh `cdk synth --all` on 2026-05-19 (see synth-manifest.txt) re-emits
+ComplianceAgentStack.template.json with the same controlled shape the
+prior cfn-guard pass covered: every IAM policy is resource-scoped (no
+Resource:"*" identity wildcard), the Guardrail is attached to the Agent,
+and the alias binds the guarded Agent. The corresponding synth-time
+assertions in infra/tests still pass (regression leg).
+
+Environment note
+----------------
+The cfn-guard CLI / content-only compliance MCP is not available in this
+autonomous analysis environment. Per the project's accepted posture
+(infra/README.md:160-217) the in-loop substitute for full template
+streaming is cfn-lint (0 errors) plus the targeted infra/tests synth
+assertions; the full cfn-guard stream is an operator pre-deploy step.
+This receipt therefore records the accepted ComplianceAgentStack result
+and its provenance, re-confirmed against the current synth — not a fresh
+CLI invocation. This limitation is stated in the audit's method caveats.

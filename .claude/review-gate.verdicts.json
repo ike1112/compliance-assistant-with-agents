@@ -1,38 +1,38 @@
 [
   {
     "name": "codex",
-    "passed": true,
-    "severity": null,
-    "summary": "Round-3 panel APPROVE (round-2 MAJORs all resolved: EMF producer wired to the real run via run_with_tracing; both SLO namespaces backed by real producer code; fixture content-bound to the exercised _drive() path) + focused re-check of the final tests+docs delta APPROVE, 0 findings. Honest changed-line coverage over the full production scope = 94.9% (tracing/slo_contract/observability 100%; only crew.py/main.py run-boundary wiring uncovered = integration-only, documented). All window subjects jargon-free."
+    "passed": false,
+    "severity": "MAJOR",
+    "summary": "Fresh cycle round 3 (final). codex returned FAIL with one MAJOR: an inline-code-split marker (`<!`-backtick-`-- token --`-backtick-`>`) keeps the prose guard silent while 'the token leaks into downstream citation/analyze/placeholder/finding scans'. ADJUDICATION: this is a surviving-STRING claim, not an exploitable fail-open, and is independently REFUTED by two rigorous legs that traced the exact attack: leg C (security) proved the counting rules read tokens_text (inline stripped identically to the guard), cost_sus/evidence_anchored are line-anchored finding-field-scoped, and _rule_receipts_real can only add a stricter on-disk requirement -> no token can be COUNTED to pass a hollow audit; leg D (code-reviewer) constructed codex's exact bypass and showed _HTML_COMMENT (DOTALL) on full text still excises a contiguous well-formed span -> 'no token leak path exists'. Leg F mutant sweep: all delta mutants killed. codex did not trace countability; its MAJOR does not constitute a real gate-integrity defect. Recorded FAIL (verbatim leg result) — the conflict is escalated to the owner, not silently overridden."
   },
   {
     "name": "test_integrity",
     "passed": true,
     "severity": null,
-    "summary": "mutation: citations.py (Phase-5 configured target, untouched by this phase) kill-rate 0.839 >= 0.80, restored clean. coverage: changed-line 94% >= 0.90 over the HONEST full scope (src/compliance_assistant + infra/stacks; no narrowed --cov) vs base 0c6399d, diff-cover exit 0. LEG B PASS."
+    "summary": "Leg B PASS on HEAD 0c447b7 vs base b068a9c: mutation kill-rate 0.881 >= 0.80; changed-line coverage 99% >= 0.90 (diff-cover exit 0)."
   },
   {
     "name": "security",
     "passed": true,
-    "severity": "MINOR",
-    "summary": "agent-skills:security-auditor PASS across rounds; round-2 multi-separator-PAN MINOR RESOLVED in round 3; no new round-3 security issue (run_with_tracing/EMF numeric-only, eval emit opt-in default-off, broadened PAN regex not ReDoS). One pre-existing _EMAIL_RE O(n^2) MINOR (NOT a phase regression, bounded availability only). The final delta is tests+docs only (no security surface; focused re-check confirms no regression). 0 BLOCKER/0 MAJOR."
+    "severity": null,
+    "summary": "security-auditor PASS, no BLOCKER/MAJOR/MINOR (2 NIT: redundant _strip_for_tokens recompute; document the intended unterminated-in-code exemption). Rigorously traced the inline-split / unterminated-in-inline attack end-to-end: the reordering introduces NO new token-injection vector — the strip-level invariant holds (counting/cross-ref rules consume tokens_text stripped identically to the guard; receipts rule only tightens). _HTML_COMMENT + _strip_for_tokens both provably linear; _resolve_receipt/_REPO_REF/single-pass-unquote untouched; tests hermetic."
   },
   {
     "name": "code",
     "passed": true,
     "severity": null,
-    "summary": "agent-skills:code-reviewer round-3 panel APPROVE (round-2 MAJOR EMF-dead-code + codex Quality-unbacked + fixture-provenance all RESOLVED at root cause) + focused re-check of the final delta PASS (severity null): delta is additive tests + 2 doc edits only, no production/gate code; honest 94% full-scope coverage defensible and not gamed; codex MINOR closed; no regression. Owner CHECK-intent ruling honored; plan==PRD verbatim; no jargon."
+    "summary": "code-reviewer PASS, no BLOCKER/MAJOR/MINOR (1 NIT: prose0 name). Verified codex's exact split-marker bypass does not leak (_HTML_COMMENT on full text excises the contiguous span; finding/evidence association is line-anchored so a stray inline token can't fake completeness). The two-variable split is the correct security design; §3.1 fail-closed parity preserved; new tests exact/isolated/message-pinned; durable artifacts jargon-clean; scope clean; completion flip deferred to the chokepoint."
   },
   {
     "name": "regression",
     "passed": true,
     "severity": null,
-    "summary": "Phase 5 PRD CHECK verbatim all green on 0c6399d..HEAD: docs/SLOs.md 11 numeric SLOs + 30d budgets + metric contracts; pytest tests/test_tracing.py passes (real callback path, 3 PRD spans, owner tool_calls semantics, tamper-proof, EMF producer, content-bound fixture); pytest infra/tests asserts Bedrock model-invocation logging present (raw-content delivery OFF) + dashboard + alarm<->SLO semantic binding + IAM accounting; redaction test (Luhn/multi-sep PAN + email, non-Luhn visible); cfn-lint -r us-east-1 0 errors; prior suites green (259 passed); Phase-3 gate suite 17 passed unchanged. No agent_ids/citations/tests-evals-gold change."
+    "summary": "Phase 6 PRD CHECK items verbatim all exit 0: audit exists; checker exits 0 on the real audit (no HTML comments); analyze receipt valid non-empty JSON; cfn-guard receipts non-empty; no STUB/FAILED-FETCH. Full suite 355 passed / 2 skipped (no regression). 79 prod_readiness tests pass."
   },
   {
     "name": "test_engineer",
     "passed": true,
     "severity": "MINOR",
-    "summary": "ADVISORY (non-blocking). Round-1/2 advisory items (tamper test, callback unit test, comparator parametrization) all addressed and mutation-verified across rounds. The round-3 advisory wiring-test recommendation was handled with discipline: the unstable order-flaky variant was reverted (a flaky gate test is worse than none); the wiring LOGIC is unit-tested directly via run_with_tracing, and crew/main wiring is documented integration-only. Objective bar (mutation 0.839 + honest 94% coverage) met."
+    "summary": "ADVISORY (never blocks). Delta tests sound; mutant sweep on the changed logic = all killed (the one survivor is a true equivalent on an unchanged line). Recommendation (hardening, non-blocking): add a token-in-fence fixture so the fenced positive self-justifies that prose-scoping is load-bearing; split-marker boundary fixtures."
   }
 ]
