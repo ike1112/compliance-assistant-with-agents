@@ -11,19 +11,30 @@ analysis/*
 !analysis/_legacy
 !analysis/_legacy/**
 
-# docs/ is mostly human-only working notes. Named deliverables are
-# tracked explicitly: the SLO contract (Phase 5 alarms synthesize from
-# it), the eval doc (Phase 3 gate references it), and the WA-Lens
-# production-readiness audit + its evidence receipts (Phase 6
-# deliverable). Everything else under docs/ stays untracked.
+# docs/ holds the navigable documentation set. Deliverables and reference
+# docs are tracked explicitly: the SLO contract (the observability alarms
+# synthesize from it), the eval doc (the eval gate references it), the
+# WA-Lens audit + evidence receipts, the architecture diagram + its review
+# log, the ADRs, the threat model, and the SYSTEM guide. Transient working
+# notes (the superpowers/ specs+plans superseded by code, large diagram
+# reference assets, and one-off scratch) stay untracked.
 docs/*
 !docs/SLOs.md
 !docs/evals.md
+!docs/SYSTEM.md
+!docs/threat-model.md
 !docs/analysis
 docs/analysis/*
 !docs/analysis/2026-05-16-compliance-prod-readiness.md
 !docs/analysis/_evidence
 !docs/analysis/_evidence/**
+!docs/adr
+!docs/adr/**
+!docs/diagrams
+docs/diagrams/*
+!docs/diagrams/compliance-assistant-v12.drawio
+!docs/diagrams/compliance-assistant-v12.png
+!docs/diagrams/compliance-assistant-review-log.md
 
 .env
 .env.*

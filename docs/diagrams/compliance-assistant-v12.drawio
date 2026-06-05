@@ -1,0 +1,492 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="Compliance Assistant — AWS Architecture" id="0">
+    <mxGraphModel dx="7430" dy="3964" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2820" pageHeight="1560" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Compliance Assistant — AWS Architecture" style="text;html=1;align=center;verticalAlign=middle;fontSize=24;fontStyle=1;fontColor=#232F3E;" parent="1" vertex="1">
+          <mxGeometry x="-740" y="610" width="1000" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="CrewAI report pipeline on Amazon Bedrock + AgentCore Runtime — numbered steps trace one operator request (1→10)" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontColor=#666666;" parent="1" vertex="1">
+          <mxGeometry x="-790" y="656" width="1100" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="cloud" value="AWS Cloud" style="shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud_alt;strokeColor=#232F3E;fillColor=none;verticalLabelPosition=top;verticalAlign=bottom;align=left;html=1;fontSize=15;fontStyle=1;fontColor=#232F3E;dashed=0;" parent="1" vertex="1">
+          <mxGeometry x="-1320" y="820" width="2160" height="1650" as="geometry" />
+        </mxCell>
+        <mxCell id="band2" value="INGESTION PATH — document upload &amp; deploy-time bootstrap" style="rounded=0;html=1;fillColor=#FDF3EC;strokeColor=#F3CBA8;dashed=0;verticalAlign=top;align=left;fontSize=15;fontStyle=1;fontColor=#C2640C;spacingLeft=10;spacingTop=6;" parent="1" vertex="1">
+          <mxGeometry x="-1300" y="1745" width="2120" height="290" as="geometry" />
+        </mxCell>
+        <mxCell id="band3" value="OBSERVABILITY — SLOs, alarms, model &amp; runtime telemetry" style="rounded=0;html=1;fillColor=#F5F0FA;strokeColor=#D8C4E8;dashed=0;verticalAlign=top;align=left;fontSize=15;fontStyle=1;fontColor=#7B1FA2;spacingLeft=10;spacingTop=6;" parent="1" vertex="1">
+          <mxGeometry x="-1300" y="2045" width="2120" height="400" as="geometry" />
+        </mxCell>
+        <mxCell id="band1" value="REQUEST PATH — operator-driven report generation" style="rounded=0;html=1;fillColor=#EFF6FC;strokeColor=#BBD9F0;dashed=0;verticalAlign=top;align=left;fontSize=15;fontStyle=1;fontColor=#1565A8;spacingLeft=10;spacingTop=6;" parent="1" vertex="1">
+          <mxGeometry x="-1300" y="860" width="2120" height="875" as="geometry" />
+        </mxCell>
+        <mxCell id="op" value="Operator" style="shape=mxgraph.aws4.user;sketch=0;html=1;pointerEvents=1;dashed=0;fillColor=#232F3E;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;fontSize=13;" parent="1" vertex="1">
+          <mxGeometry x="-1660" y="1076" width="90" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-report" value="S3 Report Bucket&#xa;[RuntimeStack] · versioned" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#3F8624;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="-1283" y="1320" width="76" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="ac-runtime" value="AgentCore Runtime&#xa;[RuntimeStack]&#xa;PUBLIC net · scale-to-zero · 8h TTL" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#01A88D;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="-1283" y="1090" width="76" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="report-kms" value="KMS&#xa;ReportKey" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#DD3522;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=10;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.key_management_service;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="-1273" y="1560" width="56" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="boot-box" value="App bootstrap (src/compliance_assistant)" style="rounded=0;html=1;container=1;collapsible=0;verticalAlign=top;align=left;fillColor=#ffffff;dashed=1;strokeColor=#6c8ebf;fontSize=11;fontColor=#3A6EA5;spacingLeft=6;" parent="1" vertex="1">
+          <mxGeometry x="-1050" y="1150" width="190" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="startup" value="startup.py&#xa;fail-fast validation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" parent="boot-box" vertex="1">
+          <mxGeometry x="15" y="35" width="160" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="agent-ids" value="agent_ids.py&#xa;SSM resolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" parent="boot-box" vertex="1">
+          <mxGeometry x="15" y="100" width="160" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e-boot" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9E9E9E;dashed=1;" parent="1" source="startup" target="agent-ids" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ssm" value="SSM Parameter Store&#xa;agent ID + alias ID" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#E7157B;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.systems_manager_parameter_store;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="-987" y="1410" width="64" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="crew-box" value="CrewAI Sequential Pipeline (crew.py)" style="rounded=0;html=1;container=1;collapsible=0;verticalAlign=top;align=center;fillColor=#EBF5FB;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;fontColor=#3A6EA5;" parent="1" vertex="1">
+          <mxGeometry x="-760" y="1060" width="270" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="agent-researcher" value="regulation_researcher" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" parent="crew-box" vertex="1">
+          <mxGeometry x="25" y="40" width="220" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="agent-writer" value="report_writer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" parent="crew-box" vertex="1">
+          <mxGeometry x="25" y="125" width="220" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="agent-designer" value="solution_designer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" parent="crew-box" vertex="1">
+          <mxGeometry x="25" y="210" width="220" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="ea" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;" parent="crew-box" source="agent-researcher" target="agent-writer" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eb" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;" parent="crew-box" source="agent-writer" target="agent-designer" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="citations" value="citations.py — Sources block renderer  (eval / offline only — not wired into runtime)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#9E9E9E;fontColor=#777777;fontSize=11;fontStyle=2;" parent="1" vertex="1">
+          <mxGeometry x="-760" y="1375" width="270" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="br-agent" value="Bedrock Agent + Alias&#xa;[AgentStack] · attached KB + guardrail&#xa;enable_trace=on" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#01A88D;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="-194" y="1083" width="76" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="br-guardrail" value="Guardrail" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#DD3522;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="-182" y="900" width="64" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="br-kb" value="Bedrock Knowledge Base&#xa;[KbStack] · RDS / pgvector" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#01A88D;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="80" y="1100" width="76" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="vpc-group" value="VPC — isolated subnets, no NAT" style="rounded=0;html=1;container=1;collapsible=0;verticalAlign=top;align=left;fillColor=none;dashed=1;strokeColor=#7AA116;strokeWidth=1.5;fontColor=#5F7F12;fontSize=11;spacingLeft=6;" parent="1" vertex="1">
+          <mxGeometry x="380" y="1026.4" width="270" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="aurora" value="Aurora Serverless v2&#xa;pgvector · min ACU 0" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#8C4FFF;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.aurora;verticalLabelPosition=bottom;verticalAlign=top;" parent="vpc-group" vertex="1">
+          <mxGeometry x="95" y="62" width="76" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="ecr" value="ECR Image&#xa;[EcrStack] · linux/arm64" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#ED7100;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.elastic_container_registry;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="-1250" y="1810" width="76" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="corpus-kms" value="KMS&#xa;CorpusKey" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#DD3522;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=10;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.key_management_service;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="-700" y="1870" width="56" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-corpus" value="S3 PDF Corpus&#xa;[KbStack] · versioned · SSE-KMS" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#3F8624;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="-480" y="1860" width="76" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="ingest-fn" value="IngestFn Lambda&#xa;S3 event → StartIngestionJob" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#ED7100;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="60" y="1850" width="76" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="pgvector-boot" value="PgvectorBootstrap Lambda&#xa;deploy-time DDL · RDS Data API (no VPC)" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#ED7100;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="480" y="1842" width="76" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="slos-doc" value="docs/SLOs.md&#xa;(11 SLOs)" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#ffffff;strokeColor=#999999;fontColor=#333333;fontSize=11;align=center;" parent="1" vertex="1">
+          <mxGeometry x="-306.5" y="2080" width="112.5" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="tracing" value="tracing.py&#xa;EMF metrics + PAN/email redaction&#xa;(runs in-process with crew)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="-1222" y="2240" width="210" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="ac-obs" value="CloudWatch Logs&#xa;(runtime container)&#xa;/aws/bedrock-agentcore/runtimes/*" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#E7157B;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="-920" y="2120" width="72" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="cw-dash" value="CloudWatch&#xa;Dashboard" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#E7157B;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="-590" y="2260" width="72" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="cw-alarms" value="CloudWatch Alarms&#xa;1 per SLO row" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#E7157B;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="-410" y="2162" width="72" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="mil" value="Model Invocation&#xa;Logging" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#01A88D;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="-160" y="2162" width="72" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="ci-box" value="QUALITY GATE  (CI — runs outside AWS)" style="rounded=0;html=1;container=1;collapsible=0;verticalAlign=top;align=left;fillColor=#FAFAFA;dashed=1;strokeColor=#888888;strokeWidth=2;fontSize=14;fontStyle=1;fontColor=#555555;spacingLeft=10;spacingTop=6;" parent="1" vertex="1">
+          <mxGeometry x="-1350" y="2564" width="2490" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="review-gate" value="review_gate/ — 6-leg panel&#xa;codex · security · code-reviewer&#xa;test-engineer · regression · mutation/cov" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#888888;fontSize=11;" parent="ci-box" vertex="1">
+          <mxGeometry x="40" y="55" width="320" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="evals" value="tests/evals/&#xa;RAG eval harness&#xa;(offline, deterministic)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#888888;fontSize=11;" parent="ci-box" vertex="1">
+          <mxGeometry x="430" y="55" width="260" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="gold-set" value="tests/evals/gold/&#xa;codex-authored, frozen&#xa;(38+ items)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#888888;fontSize=11;" parent="ci-box" vertex="1">
+          <mxGeometry x="760" y="55" width="260" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="prod-readiness" value="tests/test_prod_readiness.py&#xa;WA-Lens audit validator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#888888;fontSize=11;" parent="ci-box" vertex="1">
+          <mxGeometry x="1090" y="55" width="300" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="e-evals-gold" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#888888;" parent="ci-box" source="evals" target="gold-set" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ci-note" value="gates every deploy  (no runtime coupling to AWS resources)" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#888888;fontStyle=2;" parent="ci-box" vertex="1">
+          <mxGeometry x="1430" y="95" width="520" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="narr-box" value="Request walkthrough — one operator report" style="rounded=1;html=1;container=1;collapsible=0;verticalAlign=top;align=left;fillColor=#FBFBFD;strokeColor=#9AA7B5;strokeWidth=2;fontSize=15;fontStyle=1;fontColor=#34404D;spacingLeft=12;spacingTop=8;" parent="1" vertex="1">
+          <mxGeometry x="940" y="1320" width="1755" height="1130" as="geometry" />
+        </mxCell>
+        <mxCell id="w1" value="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=13;fontStyle=1;strokeColor=none;" parent="narr-box" vertex="1">
+          <mxGeometry x="20" y="58" width="32" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="wt1" value="Operator invokes the AgentCore Runtime HTTPS endpoint." style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontColor=#222222;" parent="narr-box" vertex="1">
+          <mxGeometry x="64" y="52" width="580" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="w2" value="2" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=13;fontStyle=1;strokeColor=none;" parent="narr-box" vertex="1">
+          <mxGeometry x="20" y="160" width="32" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="wt2" value="Runtime starts the CrewAI pipeline; startup.py validates the environment on the first invoke." style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontColor=#222222;" parent="narr-box" vertex="1">
+          <mxGeometry x="64" y="150" width="580" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="w3" value="3" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=13;fontStyle=1;strokeColor=none;" parent="narr-box" vertex="1">
+          <mxGeometry x="20" y="262" width="32" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="wt3" value="agent_ids.py resolves the Bedrock agent + alias IDs from SSM Parameter Store." style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontColor=#222222;" parent="narr-box" vertex="1">
+          <mxGeometry x="64" y="252" width="580" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="w4" value="4" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=13;fontStyle=1;strokeColor=none;" parent="narr-box" vertex="1">
+          <mxGeometry x="20" y="364" width="32" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="wt4" value="regulation_researcher calls the Bedrock Agent (InvokeAgent, trace enabled)." style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontColor=#222222;" parent="narr-box" vertex="1">
+          <mxGeometry x="64" y="354" width="580" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="w5" value="5" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=13;fontStyle=1;strokeColor=none;" parent="narr-box" vertex="1">
+          <mxGeometry x="20" y="466" width="32" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="wt5" value="The Bedrock Agent retrieves grounding context from the Knowledge Base." style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontColor=#222222;" parent="narr-box" vertex="1">
+          <mxGeometry x="64" y="456" width="580" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="w6" value="6" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=13;fontStyle=1;strokeColor=none;" parent="narr-box" vertex="1">
+          <mxGeometry x="20" y="568" width="32" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="wt6" value="The KB runs a vector similarity search over Aurora pgvector." style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontColor=#222222;" parent="narr-box" vertex="1">
+          <mxGeometry x="64" y="558" width="580" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="w7" value="7" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=13;fontStyle=1;strokeColor=none;" parent="narr-box" vertex="1">
+          <mxGeometry x="20" y="670" width="32" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="wt7" value="The Agent returns the grounded answer (its Bedrock trace carries source refs). report_writer then solution_designer run — both stages skip if research found no grounded source." style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontColor=#222222;" parent="narr-box" vertex="1">
+          <mxGeometry x="64" y="652" width="580" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="w8" value="8" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=13;fontStyle=1;strokeColor=none;" parent="narr-box" vertex="1">
+          <mxGeometry x="20" y="772" width="32" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="wt8" value="Each crew task writes its own stage file: output/1-requirements.md, 2-report.md, 3-solution.md." style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontColor=#222222;" parent="narr-box" vertex="1">
+          <mxGeometry x="64" y="756" width="580" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="w9" value="9" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=13;fontStyle=1;strokeColor=none;" parent="narr-box" vertex="1">
+          <mxGeometry x="20" y="874" width="32" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="wt9" value="Runtime uploads every output/*.md artifact to the S3 report bucket under reports/{run_id}/ (SSE-KMS, ReportKey)." style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontColor=#222222;" parent="narr-box" vertex="1">
+          <mxGeometry x="64" y="858" width="580" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="w10" value="10" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=13;fontStyle=1;strokeColor=none;" parent="narr-box" vertex="1">
+          <mxGeometry x="20" y="976" width="32" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="wt10" value="Operator downloads the generated report from S3." style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontColor=#222222;" parent="narr-box" vertex="1">
+          <mxGeometry x="64" y="966" width="580" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="narr-foot" value="Dashed paths (ingestion · observability · encryption · utility) are not part of the numbered request flow — see legend." style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontColor=#7A7A7A;fontStyle=2;" parent="narr-box" vertex="1">
+          <mxGeometry x="20" y="1050" width="620" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-box" value="Edge legend" style="rounded=1;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=13;fontStyle=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=6;fontColor=#34404D;" parent="1" vertex="1">
+          <mxGeometry x="-1610" y="2574" width="225" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-s1" style="endArrow=none;html=1;strokeColor=#1A2330;strokeWidth=3;" parent="1" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-1588" y="2606" as="sourcePoint" />
+            <mxPoint x="-1543" y="2606" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lg-t1" value="request flow (steps 1–10)" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#333333;" parent="1" vertex="1">
+          <mxGeometry x="-1535" y="2596" width="150" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-s2" style="endArrow=none;html=1;strokeColor=#ED7100;strokeWidth=3;" parent="1" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-1588" y="2634" as="sourcePoint" />
+            <mxPoint x="-1543" y="2634" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lg-t2" value="ingestion" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#333333;" parent="1" vertex="1">
+          <mxGeometry x="-1535" y="2624" width="150" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-s3" style="endArrow=none;html=1;strokeColor=#7B1FA2;strokeWidth=3;dashed=1;" parent="1" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-1588" y="2662" as="sourcePoint" />
+            <mxPoint x="-1543" y="2662" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lg-t3" value="observability" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#333333;" parent="1" vertex="1">
+          <mxGeometry x="-1535" y="2652" width="150" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-s4" style="endArrow=none;html=1;strokeColor=#DD3522;strokeWidth=2;dashed=1;" parent="1" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-1588" y="2690" as="sourcePoint" />
+            <mxPoint x="-1543" y="2690" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lg-t4" value="encryption (KMS)" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#333333;" parent="1" vertex="1">
+          <mxGeometry x="-1535" y="2680" width="150" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-s5" style="endArrow=none;html=1;strokeColor=#9E9E9E;strokeWidth=2;dashed=1;" parent="1" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-1588" y="2718" as="sourcePoint" />
+            <mxPoint x="-1543" y="2718" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lg-t5" value="utility (not in run path)" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#333333;" parent="1" vertex="1">
+          <mxGeometry x="-1535" y="2708" width="150" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="invoke" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A2330;strokeWidth=2.5;fontSize=12;" parent="1" source="op" target="ac-runtime" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n1" value="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=12;fontStyle=1;strokeColor=#FFFFFF;strokeWidth=2;" parent="e1" vertex="1" connectable="0">
+          <mxGeometry x="-0.6" width="26" height="26" relative="1" as="geometry">
+            <mxPoint x="-13" y="-13" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e2" value="run crew" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A2330;strokeWidth=2.5;fontSize=12;entryX=0.109;entryY=-0.001;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" target="crew-box" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-1218" y="1090" as="sourcePoint" />
+            <mxPoint x="-760" y="1070" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="-1218" y="780" />
+              <mxPoint x="-731" y="780" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="n2" value="2" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=12;fontStyle=1;strokeColor=#FFFFFF;strokeWidth=2;" parent="e2" vertex="1" connectable="0">
+          <mxGeometry x="-0.6" width="26" height="26" relative="1" as="geometry">
+            <mxPoint x="-13" y="-13" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3" value="resolve IDs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A2330;strokeWidth=2.5;fontSize=12;" parent="1" source="agent-ids" target="ssm" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n3" value="3" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=12;fontStyle=1;strokeColor=#FFFFFF;strokeWidth=2;" parent="e3" vertex="1" connectable="0">
+          <mxGeometry x="-0.6" width="26" height="26" relative="1" as="geometry">
+            <mxPoint x="9" y="49" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" value="InvokeAgent" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A2330;strokeWidth=2.5;fontSize=12;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;" parent="1" source="agent-researcher" target="br-agent" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n4" value="4" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=12;fontStyle=1;strokeColor=#FFFFFF;strokeWidth=2;" parent="e4" vertex="1" connectable="0">
+          <mxGeometry x="-0.6" width="26" height="26" relative="1" as="geometry">
+            <mxPoint x="-13" y="-13" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5" value="retrieve" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A2330;strokeWidth=2.5;fontSize=12;" parent="1" source="br-agent" target="br-kb" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-30" y="1121" />
+              <mxPoint x="-30" y="1120" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="n5" value="5" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=12;fontStyle=1;strokeColor=#FFFFFF;strokeWidth=2;" parent="e5" vertex="1" connectable="0">
+          <mxGeometry x="-0.6" width="26" height="26" relative="1" as="geometry">
+            <mxPoint x="-13" y="-13" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6" value="query vectors (retrieval-time)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A2330;strokeWidth=2.5;fontSize=11;entryX=0;entryY=0.35;entryDx=0;entryDy=0;" parent="1" target="aurora" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="160" y="1140" as="sourcePoint" />
+            <Array as="points">
+              <mxPoint x="300" y="1140" />
+              <mxPoint x="300" y="1126" />
+              <mxPoint x="310" y="1126" />
+              <mxPoint x="310" y="1115" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="n6" value="6" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=12;fontStyle=1;strokeColor=#FFFFFF;strokeWidth=2;" parent="e6" vertex="1" connectable="0">
+          <mxGeometry x="-0.6" width="26" height="26" relative="1" as="geometry">
+            <mxPoint x="-13" y="-13" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" value="RAG response&#xa;(trace carries source refs)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A2330;strokeWidth=2.5;fontSize=11;exitX=0;exitY=0.7;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" parent="1" source="br-agent" target="agent-researcher" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-194" y="1149" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="n7" value="7" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=12;fontStyle=1;strokeColor=#FFFFFF;strokeWidth=2;" parent="e7" vertex="1" connectable="0">
+          <mxGeometry x="0.1" width="26" height="26" relative="1" as="geometry">
+            <mxPoint x="-105" y="10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" value="stage files written (output/*.md)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A2330;strokeWidth=2.5;fontSize=11;exitX=0;exitY=0.6;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="agent-designer" target="ac-runtime" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-735" y="1303" />
+              <mxPoint x="-820" y="1303" />
+              <mxPoint x="-820" y="1050" />
+              <mxPoint x="-1218" y="1050" />
+              <mxPoint x="-1218" y="1166" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="n8" value="8" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=12;fontStyle=1;strokeColor=#FFFFFF;strokeWidth=2;" parent="e8" vertex="1" connectable="0">
+          <mxGeometry x="-0.6" width="26" height="26" relative="1" as="geometry">
+            <mxPoint x="-13" y="-13" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" value="upload output/*.md → reports/{run_id}/" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A2330;strokeWidth=2.5;fontSize=11;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="ac-runtime" target="s3-report" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n9" value="9" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=12;fontStyle=1;strokeColor=#FFFFFF;strokeWidth=2;" parent="e9" vertex="1" connectable="0">
+          <mxGeometry x="-0.6" width="26" height="26" relative="1" as="geometry">
+            <mxPoint x="-40" y="113" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" value="operator reads report" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1A2330;strokeWidth=2.5;fontSize=12;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="s3-report" target="op" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-1615" y="1358" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="n10" value="10" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1A2330;fontColor=#FFFFFF;fontSize=12;fontStyle=1;strokeColor=#FFFFFF;strokeWidth=2;" parent="e10" vertex="1" connectable="0">
+          <mxGeometry x="-0.6" width="26" height="26" relative="1" as="geometry">
+            <mxPoint x="-13" y="-13" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-validate" value="validate env (first invoke)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9E9E9E;dashed=1;fontSize=10;fontColor=#9E9E9E;" parent="1" source="ac-runtime" target="startup" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-guard" value="attached guardrail&#xa;(content filter)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#DD3522;dashed=1;fontSize=10;" parent="1" edge="1">
+          <mxGeometry x="0.4316" y="-6" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-150" y="1026" />
+              <mxPoint x="-140" y="1026" />
+            </Array>
+            <mxPoint x="-150" y="900" as="sourcePoint" />
+            <mxPoint x="-140" y="1080" as="targetPoint" />
+            <mxPoint x="6" y="-6" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-cite" value="utility (not wired in run path)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9E9E9E;dashed=1;fontSize=10;fontColor=#9E9E9E;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="agent-researcher" target="citations" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-kms-report" value="SSE-KMS" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#DD3522;dashed=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="s3-report" target="report-kms" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-instrument" value="instrument (callbacks)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9E9E9E;dashed=1;fontSize=10;fontColor=#9E9E9E;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="crew-box" target="tracing" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-760" y="1475" />
+              <mxPoint x="-750" y="1475" />
+              <mxPoint x="-750" y="2270" />
+              <mxPoint x="-1012" y="2270" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-ecr-rt" value="deploy before (image must exist)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#ED7100;dashed=1;strokeWidth=2;fontSize=10;exitX=0.75;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.65;entryDx=0;entryDy=0;" parent="1" source="ecr" target="ac-runtime" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-1180" y="1790" />
+              <mxPoint x="-1180" y="1139" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-s3-ingest" value="OBJECT_CREATED" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#ED7100;strokeWidth=2;fontSize=10;" parent="1" source="s3-corpus" target="ingest-fn" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-ingest-kb" value="StartIngestionJob&#xa;(control plane)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#ED7100;strokeWidth=2;fontSize=10;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" parent="1" source="ingest-fn" target="br-kb" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="88" y="1822" />
+              <mxPoint x="90" y="1822" />
+              <mxPoint x="90" y="1630" />
+              <mxPoint x="120" y="1630" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-kb-s3read" value="reads PDFs&#xa;(KB role, ingest)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#3F8624;dashed=1;fontSize=10;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="br-kb" target="s3-corpus" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="10" y="1176" />
+              <mxPoint x="10" y="1440" />
+              <mxPoint x="-442" y="1440" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-kb-aurora-write" value="write vectors (ingest-time)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#8C4FFF;strokeWidth=2;fontSize=10;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" parent="1" source="br-kb" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="160" y="1138" />
+              <mxPoint x="160" y="1180" />
+              <mxPoint x="406" y="1180" />
+              <mxPoint x="406" y="1131" />
+            </Array>
+            <mxPoint x="306" y="1303.4" as="sourcePoint" />
+            <mxPoint x="532" y="1131.4" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-pgvec" value="CREATE EXTENSION vector&#xa;(RDS Data API, deploy-time)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#ED7100;dashed=1;strokeWidth=2;fontSize=10;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" parent="1" source="pgvector-boot" target="aurora" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="510" y="1842" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-ckms" value="SSE-KMS" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#DD3522;dashed=1;fontSize=10;" parent="1" source="s3-corpus" target="corpus-kms" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eobs1" value="EMF metrics" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#7B1FA2;dashed=1;strokeWidth=2;fontSize=10;" parent="1" source="tracing" target="cw-dash" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-1117" y="2340" />
+              <mxPoint x="-554" y="2340" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="eobs2" value="parse thresholds (CDK synth)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#7B1FA2;dashed=1;strokeWidth=2;fontSize=10;" parent="1" source="slos-doc" target="cw-alarms" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-260" y="2310" />
+              <mxPoint x="-374" y="2310" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="eobs3" value="model invocation logs" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#7B1FA2;dashed=1;strokeWidth=2;fontSize=10;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="br-agent" target="mil" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-118" y="1426" />
+              <mxPoint x="-120" y="1426" />
+              <mxPoint x="-120" y="2130" />
+              <mxPoint x="-118" y="2130" />
+              <mxPoint x="-118" y="2162" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="eobs4" value="container logs (stdout)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#7B1FA2;dashed=1;strokeWidth=2;fontSize=10;exitX=1;exitY=0.7;exitDx=0;exitDy=0;" parent="1" source="ac-runtime" target="ac-obs" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-1085" y="1143" />
+              <mxPoint x="-1085" y="2125" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
