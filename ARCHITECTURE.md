@@ -134,8 +134,9 @@ OpenSearch Serverless on idle cost).
 
 ## 3. Phase-by-phase narrative
 
-Each phase has its own plan under [`.claude/PRPs/plans/completed/`](.claude/PRPs/plans/completed/)
-and was gated by the same panel composition (see §4). The PRD's
+Each phase has its own plan under [`.claude/PRPs/plans/`](.claude/PRPs/plans/)
+(two are in the `completed/` subdirectory) and was gated by the same panel
+composition (see §4). The PRD's
 [Implementation Phases table](.claude/PRPs/compliance-prod-hardening.prd.md)
 is the spine; what follows is the narrative.
 
