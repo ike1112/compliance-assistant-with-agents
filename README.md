@@ -160,6 +160,15 @@ proposed AWS control implementation). The standalone `## Sources` renderer
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Engineering deep dive: inherited vs built, phase narratives, the quality-gate machine |
 | [`docs/threat-model.md`](docs/threat-model.md) | Trust boundaries, threat scenarios, mitigations, residual risks |
 
+### How to run it
+
+| File | Purpose |
+|---|---|
+| [`docs/live-launch.md`](docs/live-launch.md) | Operator HUMAN-GATE protocol: deploy to AWS, verify end to end, capture evidence, tear down |
+| [`docs/demo-script.md`](docs/demo-script.md) | Presentation/recording outline + evidence checklist for the offline path |
+
+For local validation with no AWS spend, see the **Quick start** section above.
+
 ### Contracts (single source of truth)
 
 | File | Purpose |
