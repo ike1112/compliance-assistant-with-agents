@@ -380,12 +380,12 @@ silently drift the stack. The line is drawn at "anything the
 CloudFormation API mutates in real AWS." See the *HUMAN-GATE* rows in
 the PRD's Success Criteria section.
 
-**`docs/` is mostly working notes.** Only named deliverables are
-tracked: the SLO contract, the eval contract, the WA-Lens audit, and its
-evidence receipts. The original spec/plan under `docs/superpowers/` is
-intentionally untracked — superseded by code that is the source of
-truth. See `.gitignore` for the exact set. This rule has one documented
-exception (Progress Log 2026-05-19 in the PRD).
+**`docs/` tracks the navigable doc set.** Tracked: the SYSTEM guide, the
+ADRs, the threat model, the SLO and eval contracts, the WA-Lens audit + its
+evidence receipts, and the architecture diagram + its review log. The
+spec/plan notes under `docs/superpowers/` and large diagram reference assets
+stay untracked — superseded by code that is the source of truth. See
+`.gitignore` for the exact set.
 
 **Phase 6 closed by owner-acceptance, not gate PASS.** Covered above
 in §5.

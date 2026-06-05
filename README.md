@@ -9,6 +9,16 @@ observability, and a final evidence-backed audit). For the engineering
 narrative, see [ARCHITECTURE.md](ARCHITECTURE.md). For the WA-Lens audit
 itself, see [docs/analysis/2026-05-16-compliance-prod-readiness.md](docs/analysis/2026-05-16-compliance-prod-readiness.md).
 
+## Architecture
+
+![Compliance Assistant architecture](docs/diagrams/compliance-assistant-v12.png)
+
+Architecture source: [`docs/diagrams/compliance-assistant-v12.drawio`](docs/diagrams/compliance-assistant-v12.drawio).
+The numbered steps trace one operator request (1→10); the right-side panel on
+the diagram walks each step, and the same flow is narrated in
+[`docs/SYSTEM.md`](docs/SYSTEM.md). The diagram's review history is in
+[`docs/diagrams/compliance-assistant-review-log.md`](docs/diagrams/compliance-assistant-review-log.md).
+
 ## Current status
 
 The work was done as **synth-time IaC plus offline tests** — every CHECK in
@@ -70,10 +80,11 @@ are deliberate:
   An autonomous loop that runs `cdk deploy` would burn through cloud spend
   and silently drift the stack. The line is drawn at "anything the
   CloudFormation API mutates in real AWS."
-- **`docs/` is mostly working notes.** Only named deliverables are tracked
-  (SLO contract, eval contract, the WA-Lens audit + receipts). The original
-  spec and plan documents stay untracked because they have been superseded
-  by code that is the source of truth. See `.gitignore` for the exact list.
+- **`docs/` tracks the navigable doc set; scratch stays out.** Tracked: the
+  SYSTEM guide, the ADRs, the threat model, the SLO + eval contracts, the
+  WA-Lens audit + receipts, and the architecture diagram + its review log.
+  Superseded `superpowers/` specs/plans and large reference assets stay
+  untracked — code is the source of truth. See `.gitignore` for the exact list.
 - **Phase 6 closed by owner-acceptance, not gate PASS.** The 6-leg quality
   gate returned FAIL on a contested finding from the codex adversarial
   leg; the other five legs (security, code review, test-engineer mutant
@@ -102,9 +113,10 @@ tests/evals/        RAG evaluation harness: gold set, retrieval +
 tests/review_gate/  Tests covering the quality-gate machine itself
 review_gate/        Quality-gate orchestration (panel, mutation, diff,
                     aggregation, provenance, PRD updates)
-docs/               Tracked: SLOs.md, evals.md, analysis/ (the WA-Lens
-                    audit + evidence). Other files are local working
-                    notes (gitignored).
+docs/               Tracked: SYSTEM.md, adr/, threat-model.md, SLOs.md,
+                    evals.md, analysis/ (WA-Lens audit + evidence), and
+                    diagrams/ (architecture diagram + review log).
+                    Superseded specs/plans stay gitignored.
 analysis/_legacy/   Pre-hardening AWS-sample artifacts, kept for
                     provenance. See its own README.
 .claude/PRPs/       PRD + per-phase plans (tracked). Internal artifacts
@@ -137,6 +149,37 @@ inline source reference traced to the Bedrock Agent's retrieval, and the
 report ends with a "Known gaps" section), and `output/3-solution.md` (the
 proposed AWS control implementation). The standalone `## Sources` renderer
 (`citations.py`) is an eval-only utility, not wired into the runtime crew.
+
+## Documentation
+
+### How the system works
+
+| File | Purpose |
+|---|---|
+| [`docs/SYSTEM.md`](docs/SYSTEM.md) | System guide: personas, user stories, report-generation + ingestion flows, sequence diagram |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Engineering deep dive: inherited vs built, phase narratives, the quality-gate machine |
+| [`docs/threat-model.md`](docs/threat-model.md) | Trust boundaries, threat scenarios, mitigations, residual risks |
+
+### Contracts (single source of truth)
+
+| File | Purpose |
+|---|---|
+| [`docs/SLOs.md`](docs/SLOs.md) | SLO table the observability stack parses into one alarm per row |
+| [`docs/evals.md`](docs/evals.md) | RAG eval harness contract: gold set, metrics, gate thresholds |
+| [`docs/analysis/2026-05-16-compliance-prod-readiness.md`](docs/analysis/2026-05-16-compliance-prod-readiness.md) | Evidence-backed WA-Lens audit across all seven pillars |
+
+### Decision records
+
+| File | Purpose |
+|---|---|
+| [`docs/adr/`](docs/adr/) | Architecture Decision Records — index + 7 ADRs, the durable "why" |
+
+### Visuals
+
+| File | Purpose |
+|---|---|
+| [`docs/diagrams/compliance-assistant-v12.drawio`](docs/diagrams/compliance-assistant-v12.drawio) + [`.png`](docs/diagrams/compliance-assistant-v12.png) | Canonical architecture diagram: numbered request flow + right-side narrative |
+| [`docs/diagrams/compliance-assistant-review-log.md`](docs/diagrams/compliance-assistant-review-log.md) | Why the diagram changed across review rounds |
 
 ## License
 
