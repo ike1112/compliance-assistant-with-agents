@@ -23,6 +23,8 @@ docs/*
 !docs/evals.md
 !docs/SYSTEM.md
 !docs/threat-model.md
+!docs/live-launch.md
+!docs/demo-script.md
 !docs/analysis
 docs/analysis/*
 !docs/analysis/2026-05-16-compliance-prod-readiness.md
