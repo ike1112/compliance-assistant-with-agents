@@ -29,7 +29,7 @@ The production-hardening work that followed introduced:
   (`tests/evals/`).
 - AgentCore Runtime IaC (`infra/stacks/runtime_stack.py`) for hosting the
   crew.
-- Tracing, redaction, and SLO-derived alarms (`src/compliance_assistant/tracing/`,
+- Tracing, redaction, and SLO-derived alarms (`src/compliance_assistant/tracing.py`,
   `infra/stacks/observability_stack.py`, [`docs/SLOs.md`](../../docs/SLOs.md)).
 - A six-leg quality gate (`review_gate/`) that ran on every phase.
 
