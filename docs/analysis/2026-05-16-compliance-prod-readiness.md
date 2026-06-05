@@ -213,9 +213,11 @@ GAP-SUS-01 [P1] Idle provisioned capacity wastes energy [P1|mixed|M]
 
 GAP-GENAI-01 [P0] Citations off — report had zero source attribution [P0|high|S]
   Risk: users treated uncited compliance guidance as authoritative.
-  Evidence: src/compliance_assistant/citations.py:1 renders a deterministic
-        Sources block from the agent trace; tests/evals/ gold set + judge gate
-        (R-EVAL-GOLD, R-EVAL-RUNNER) assert citation-correctness ≥ 0.95.
+  Evidence: the writer task preserves an inline source reference per
+        requirement (src/compliance_assistant/config/tasks.yaml:57); the eval
+        gold set + judge gate (R-EVAL-GOLD, R-EVAL-RUNNER) assert
+        citation-correctness ≥ 0.95. src/compliance_assistant/citations.py:1
+        is the eval-side Sources renderer, not wired into the runtime crew.
   Why this matters here (NOT generic): a compliance report without citations is
         unusable for audit and actively dangerous.
   Source: AWS WA GenAI Lens — responsible AI (traceability).

@@ -78,10 +78,10 @@ What was added:
      |          |          |          |          |          |
      v          v          v          v          v          v
 +---------+ +--------+ +--------+ +---------+ +---------+ +------------+
-| CrewAI  | | trace  | | start- | | citation| | redact  | | quality    |
-| crew    | | layer  | | up val | | check   | | layer   | | gate (CI)  |
-| sequen- | | (EMF + | | (fail- | | (Sources| | (PAN /  | | (panel +   |
-| tial    | | spans) | | fast)  | | block)  | | email)  | |  mutation) |
+| CrewAI  | | trace  | | start- | | report  | | redact  | | quality    |
+| crew    | | layer  | | up val | | source  | | layer   | | gate (CI)  |
+| sequen- | | (EMF + | | (fail- | | refs    | | (PAN /  | | (panel +   |
+| tial    | | spans) | | fast)  | | (inline)| | email)  | |  mutation) |
 +---------+ +--------+ +--------+ +---------+ +---------+ +------------+
      |
      | invokes

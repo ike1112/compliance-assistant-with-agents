@@ -132,9 +132,11 @@ crewai run
 ```
 
 The crew writes to `output/1-requirements.md` (research),
-`output/2-report.md` (full report — final line is a `## Sources` block
-with citation IDs), and `output/3-solution.md` (the proposed AWS
-control implementation).
+`output/2-report.md` (full report — each requirement section carries an
+inline source reference traced to the Bedrock Agent's retrieval, and the
+report ends with a "Known gaps" section), and `output/3-solution.md` (the
+proposed AWS control implementation). The standalone `## Sources` renderer
+(`citations.py`) is an eval-only utility, not wired into the runtime crew.
 
 ## License
 
