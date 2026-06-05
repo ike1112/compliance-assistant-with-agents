@@ -151,8 +151,9 @@ crew's `.env` carried real account-scoped resource IDs.
 - KB type explicitly RDS; chunking config is a CDK context value
   (`infra/cdk.json`) whose winner is selected by the Phase 3 eval harness,
   not by guess.
-- Agent + alias provisioned in code, with Guardrail attached and
-  citations on.
+- Agent + alias provisioned in code, with the Guardrail attached. Source
+  attribution is not an agent setting: it comes from invoke-time tracing
+  (`enable_trace`) plus the writer task preserving inline source refs.
 - Agent/KB IDs published to SSM with the exact crew-contract names; the
   crew reads SSM at startup, not `.env`.
 
