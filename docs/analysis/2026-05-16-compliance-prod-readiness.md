@@ -49,7 +49,7 @@ and **no opensearch** (`_evidence/analyze-cdk-project.json`).
 | R-BR-ALIAS | Bedrock Agent alias | Bedrock knowledge-layer IaC |
 | R-GUARDRAIL | Bedrock Guardrail + version | Bedrock knowledge-layer IaC |
 | R-AC-RUNTIME | AgentCore Runtime hosting the crew | AgentCore Runtime IaC |
-| R-AC-OBS | AgentCore Observability | Observability + SLOs |
+| R-AC-OBS | AgentCore runtime container logs (CloudWatch Logs, IAM-granted) | AgentCore Runtime IaC |
 | R-S3-REPORT | S3 versioned report-output bucket | AgentCore Runtime IaC |
 | R-MIL | Bedrock model-invocation logging sink | Observability + SLOs |
 | R-CW-DASH | CloudWatch dashboard | Observability + SLOs |
@@ -93,9 +93,11 @@ GAP-OPS-01 [P0] KB/Agent/Guardrail were click-ops, not reproducible [P0|high|M]
 
 GAP-OPS-02 [P0] No observability — stdout verbose only [P0|high|M]
   Risk: no per-agent traces or model-invocation logging; failures opaque.
-  Evidence: infra/stacks/observability_stack.py:1 (R-AC-OBS, R-MIL, R-CW-DASH,
-        R-CW-ALARMS) and src/compliance_assistant/tracing.py:1 (three redacted
-        stage spans); ComplianceObservabilityStack synthesizes.
+  Evidence: infra/stacks/observability_stack.py:1 (R-MIL, R-CW-DASH,
+        R-CW-ALARMS), infra/stacks/runtime_stack.py:154 (R-AC-OBS — runtime
+        container logs via a scoped CloudWatch Logs IAM grant), and
+        src/compliance_assistant/tracing.py:1 (three redacted stage spans);
+        ComplianceObservabilityStack synthesizes.
   Why this matters here (NOT generic): compliance runs are audit records and
         must be traceable per agent and per model call.
   Source: AWS WA GenAI Lens — Operational Excellence (observability).

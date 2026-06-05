@@ -118,7 +118,7 @@ What was added:
 |  CloudWatch dashboard (R-CW-DASH) +                                   |
 |  composite alarms (R-CW-ALARMS)   <-- thresholds == docs/SLOs.md rows |
 |  Bedrock model-invocation logging (R-MIL)                             |
-|  AgentCore Observability         (R-AC-OBS)                           |
+|  Runtime container logs (R-AC-OBS) -- CloudWatch Logs, IAM grant      |
 +-----------------------------------------------------------------------+
 ```
 
