@@ -293,7 +293,7 @@ cd infra && npx --yes aws-cdk@latest deploy ComplianceRuntimeStack \
 
 Post-deploy: upload a sample regulatory PDF to the corpus bucket,
 confirm an ingestion job runs, then `crewai run` and confirm
-`output/2-report.md` ends with a populated `## Sources` block. For the
+`output/2-report.md` carries an inline source reference per section. For the
 hosted runtime, `POST /invocations` returns a `run_id`; poll `/ping`
 until `Healthy` and confirm the report artifact lands in the versioned
 report bucket (a no-grounded-findings run uploads `1-requirements.md`
