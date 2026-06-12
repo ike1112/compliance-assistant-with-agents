@@ -11,6 +11,21 @@ The methodology is the [AWS Well-Architected GenAI Lens](https://docs.aws.amazon
 applied as a six-phase decomposition with each phase gated by an
 independent six-leg review panel.
 
+## Status note (2026-06-11)
+
+The repo is **verified in code and tests, not yet proven in production**.
+The current codebase now includes:
+
+- durable runtime run manifests in the report bucket
+- ingest DLQ + ingest alarms + SNS notification wiring
+- a post-deploy live conformance harness for the deployed Bedrock agent
+- minimal CI for pytest, the offline eval gate, synth, and cfn-lint
+
+The remaining proof step is operational, not architectural: deploy the hardened
+stack, run one grounded end-to-end report, run one correct negative, run the
+live conformance subset, confirm one `ComplianceAssistant/Crew` CloudWatch
+metric receipt, and capture the evidence described in `docs/live-launch.md`.
+
 ## 1. What was inherited vs what was built
 
 The starting point was a CrewAI sequential pipeline (3 agents, 3 tasks)

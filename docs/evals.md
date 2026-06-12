@@ -1,114 +1,101 @@
 # RAG Evaluation Harness
 
-Offline, deterministic, non-circular evaluation of the compliance
-assistant's grounding layer against the frozen, codex-authored gold set
-at `tests/evals/gold/` (immutable ground truth; never modified by the
-harness).
+The repo now has two complementary evaluation paths:
 
-## What is the "system under test"
+1. **Offline gate** for deterministic, no-spend regression protection.
+2. **Live conformance** for post-deploy checks against the deployed Bedrock
+   agent.
 
-There is no deployed Bedrock knowledge base in this environment (Phase 1's
-operator deploy is a HUMAN-GATE). The eval's system is therefore:
+The offline gate stays the merge/CI contract. The live conformance run is the
+production-proof contract.
 
-1. **Retrieval** — deterministic BM25 over the frozen corpus, chunked per
-   the config under test. Fully offline, reproducible, no model spend.
-2. **Generation** — an LLM (the authenticated `codex` CLI) answers
-   strictly from the retrieved context, declining with exactly
-   `Not found in knowledge base` when the context is insufficient
-   (mirrors `compliance_assistant.crew._has_grounded_findings`).
-3. **Judge** — an LLM scores faithfulness/hallucination with the
-   committed `tests/evals/judge/judge_prompt.md` + `judge_rubric.md`.
+## Offline gate
 
-This is exactly the signal a chunking decision needs (retrieval quality
-and downstream answer quality). The production crew (Bedrock Agent) is a
-separate runtime path; this harness evaluates retrieval + grounded
-generation.
+The offline system under test is:
 
-## Determinism & anti-gaming
+1. Deterministic BM25 retrieval over the frozen corpus.
+2. A recorded LLM answer generated strictly from the retrieved context.
+3. A recorded LLM judge response, used only as corroborating evidence.
 
-`pytest tests/evals -m gate` is offline (sockets blocked in-test) and
-deterministic (recompute twice → identical). It never trusts a stored
-score. Each fixture is a RAW recording (system answer, retrieved context
-+ its SHA-256, trace, judge request, raw judge response, model id,
-harness version, recorded-at commit, and the committed prompt/rubric
-SHA-256). The gate:
+`pytest tests/evals -m gate` is offline and deterministic. It never trusts a
+stored score. It recomputes retrieval metrics, citation correctness,
+groundedness, not-found honesty, and requirement coverage from raw fixtures
+bound to the committed prompt/rubric and retrieved-context hashes.
 
-- recomputes retrieval metrics from the frozen corpus,
-- recomputes citation-correctness deterministically against
-  `compliance_assistant.citations.render_citations`,
-- recomputes not-found-honesty and requirement-coverage from the recorded
-  answer text,
-- reads faithfulness/hallucination from the raw judge response and
-  **cross-checks** them with a deterministic groundedness lower-bound
-  (a high judge score with low lexical groundedness is treated as forged
-  → FAIL),
-- hash-binds every fixture to the committed judge prompt/rubric and to
-  its own recorded context (mismatch → FAIL),
-- fails if any scored (item × deploy-equivalent config) fixture is
-  missing.
+### Gate thresholds
 
-## Residual trust (stated explicitly)
+- context-recall >= 0.90
+- context-precision >= 0.80
+- MRR >= 0.80
+- groundedness >= 0.95
+- faithfulness >= 0.95
+- citation-correctness >= 0.95
+- hallucination <= 0.05
+- not-found-honesty == 1.0
+- requirement-coverage >= 0.90
 
-The gate's **binding** generation criterion is deterministic: recomputed
-lexical groundedness of the recorded answer against the **recomputed**
-BM25 retrieved context (the fixture's `retrieved_context` must equal
-this run's deterministic top-k or the gate hard-fails), plus
-deterministic citation-correctness, requirement-coverage, and
-not-found-honesty. The recorded LLM judge `faithfulness`/`hallucination`
-are **corroborating evidence only** — offline execution cannot attest
-that an LLM actually produced a given `judge_raw_response`; SHA-binding
-only proves the fixture names the committed prompt/rubric. A fabricated
-judge score therefore cannot pass the gate on its own: the answer must
-still be deterministically grounded in the recomputed retrieved context
-(groundedness ≥ 0.95) with no forged item. The one residual trust is
-that the recorded *system answer* was produced by the live model run
-(re-recordable only via `EVALS_LIVE=1`); every metric that decides
-pass/fail is recomputed from it deterministically.
+## Live conformance
 
-## Metrics, thresholds (the pinned contract)
+The live conformance path is separate from the BM25 recorder. It invokes the
+deployed Bedrock agent with trace enabled and scores a fixed gold-set subset
+listed in [`tests/evals/live_conformance_subset.json`](../tests/evals/live_conformance_subset.json).
 
-- `k = 5` (fixed before implementation; same k for retrieval scoring,
-  generation context, and the report).
-- Relevance = SCHEMA substring-coverage (exact characters).
-- context-recall ≥ 0.90, context-precision ≥ 0.80 (Ragas-style
-  rank-aware), MRR ≥ 0.80.
-- faithfulness ≥ 0.95, citation-correctness ≥ 0.95, hallucination ≤ 0.05.
-- not-found-honesty == 1.0 (every negative declines, zero fabricated
-  requirements), requirement-coverage ≥ 0.90 on the labeled subset.
+### What it records
 
-Judge model: the authenticated `codex` CLI (`model_id: codex-cli`),
-recorded once; thresholds in `tests/evals/judge/judge_rubric.md`.
+- the live answer text
+- Bedrock citations / retrieved references from the response trace
+- reconstructed retrieved context from those references
+- judge-backed faithfulness for positive questions
 
-## Chunking decision (Phase 1 ↔ 3 handoff)
+### What it scores
 
-`tests/evals/harness/report.py` scores ≥2 deploy-equivalent FIXED_SIZE
-configs plus an advisory HIERARCHICAL config. Selection rule: **max
-context-recall@k subject to faithfulness ≥ 0.95**, over deploy-equivalent
-configs only; deterministic tie-break MRR → precision → config key.
-The selection rule, exactly as enforced in `report.py`, is: **max
-context-recall@k subject to deterministic groundedness ≥ 0.95 AND
-faithfulness ≥ 0.95 AND no forged fixture**, over deploy-equivalent
-FIXED_SIZE configs only; tie-break MRR, then precision, then config key.
-HIERARCHICAL is non-deployable (`infra/stacks/kb_stack.py` emits only
-Bedrock fixed-size chunking, and now rejects a non-FIXED_SIZE context
-value at synth) and is never written to `infra/cdk.json`. The negative
-fixtures carry the same residual-trust caveat as positives: their
-`retrieved_context` is bound to the recomputed retriever, but the
-recorded "Not found in knowledge base" answer text itself is trusted as
-a live recording (an honest negative can only help, never inflate a
-score — it is rejected if it carries any requirement citation).
-The winner is written into `infra/cdk.json` `context`; `report.json` is
-the machine contract and `report.md` is rendered from it; a gate test
-asserts `cdk.json == report.json` winner.
+- groundedness
+- citation-correctness
+- faithfulness
+- requirement-coverage
+- not-found-honesty
+- forged-answer guard
 
-## Running
+### Live pass bar
+
+The live conformance summary passes only when:
+
+- groundedness >= 0.95
+- citation-correctness >= 0.95
+- faithfulness >= 0.95
+- requirement-coverage >= 0.90
+- not-found-honesty == 1.0
+- no forged positive result is detected
+
+### Running it
+
+The deployed agent must already exist and be reachable through the same
+SSM/env agent-id resolution path as the runtime.
 
 ```bash
-# Gate (offline, deterministic, no spend) — what CI / the phase gate runs:
+PYTHONPATH=src python -m tests.evals.harness.live_agent
+```
+
+That command writes `tests/evals/live_report.json`. Treat the report as a
+launch artifact, not as a CI input.
+
+## Running locally
+
+```bash
+# Offline gate (CI / merge contract)
 PYTHONPATH=src python -m pytest tests/evals -m gate -q
 
-# Re-record raw fixtures via the real model (opt-in, resumable):
+# Re-record raw offline fixtures (opt-in)
 EVALS_LIVE=1 PYTHONPATH=src python -m tests.evals.harness.recorder
-# then regenerate report.json / report.md / infra/cdk.json:
 PYTHONPATH=src python -m tests.evals.harness.report
+
+# Post-deploy live conformance
+PYTHONPATH=src python -m tests.evals.harness.live_agent
 ```
+
+## Current truth
+
+The offline gate is enforced in code and CI today. The live conformance path
+exists in code and documentation, but the repo should still be described as
+"verified in code and tests, not yet proven in production" until a hardened
+deploy completes and the live report is captured.

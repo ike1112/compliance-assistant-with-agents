@@ -1,185 +1,138 @@
-# Compliance Assistant — production-hardened reference sample
+# Compliance Assistant - production-hardened reference sample
 
 A CrewAI + Amazon Bedrock compliance-research assistant that turns a regulation
-topic (e.g. *"Latest PCI DSS requirements for trading platforms"*) into a
-cited report. The project started as an AWS sample and was production-hardened
-against the [AWS Well-Architected GenAI Lens](https://docs.aws.amazon.com/wellarchitected/latest/generative-ai-lens/generative-ai-lens.html)
-across six phases (IaC, config hardening, RAG evals, runtime IaC,
-observability, and a final evidence-backed audit). For the engineering
+topic into a cited report. The project started as an AWS sample and was
+production-hardened against the
+[AWS Well-Architected GenAI Lens](https://docs.aws.amazon.com/wellarchitected/latest/generative-ai-lens/generative-ai-lens.html)
+across six workstreams: IaC, config hardening, RAG evals, runtime IaC,
+observability, and a final evidence-backed audit. For the engineering
 narrative, see [ARCHITECTURE.md](ARCHITECTURE.md). For the WA-Lens audit
-itself, see [docs/analysis/2026-05-16-compliance-prod-readiness.md](docs/analysis/2026-05-16-compliance-prod-readiness.md).
+itself, see
+[docs/analysis/2026-05-16-compliance-prod-readiness.md](docs/analysis/2026-05-16-compliance-prod-readiness.md).
 
 ## Architecture
 
 ![Compliance Assistant architecture](docs/diagrams/compliance-assistant-v12.png)
 
-Architecture source: [`docs/diagrams/compliance-assistant-v12.drawio`](docs/diagrams/compliance-assistant-v12.drawio).
-The numbered steps trace one operator request (1→10); the right-side panel on
-the diagram walks each step, and the same flow is narrated in
+Architecture source:
+[`docs/diagrams/compliance-assistant-v12.drawio`](docs/diagrams/compliance-assistant-v12.drawio).
+The numbered steps trace one operator request; the same flow is narrated in
 [`docs/SYSTEM.md`](docs/SYSTEM.md). The diagram's review history is in
 [`docs/diagrams/compliance-assistant-review-log.md`](docs/diagrams/compliance-assistant-review-log.md).
 
 ## Current status
 
-The work was done as **synth-time IaC plus offline tests** — every CHECK in
-the [PRD](.claude/PRPs/compliance-prod-hardening.prd.md) is autonomous and
-deterministic (no AWS spend). The billable `cdk deploy` is gated as an
-explicit operator decision, not an autonomous step, because the deployed
+The repo is **verified in code and tests, not yet proven in production**.
+The local and CI path now covers synth, pytest, the offline eval gate,
+cfn-lint, runtime durability, ingest failure handling, and alarm wiring. The
+billable `cdk deploy` remains an explicit operator step because the deployed
 stack runs Aurora pgvector, Bedrock Agent, KB ingestion, and AgentCore
-Runtime — all of which carry real cost. See the *HUMAN-GATE* rows in the PRD.
+Runtime - all of which carry real cost.
 
 | Layer | What ships | Verified by |
 |------|------------|-------------|
-| Bedrock knowledge layer (KB, Aurora pgvector, Agent + Guardrail) | CDK synth → 5 templates | [`infra/stacks/kb_stack.py`](infra/stacks/kb_stack.py), [`infra/stacks/agent_stack.py`](infra/stacks/agent_stack.py), [`infra/tests/`](infra/tests/) (cfn-guard COMPLIANT) |
-| Config & secrets | Fail-fast startup validation; env-gated verbosity | [`src/compliance_assistant/startup.py`](src/compliance_assistant/startup.py), [`tests/test_startup.py`](tests/test_startup.py) |
-| RAG evaluation harness | Offline gold-set gate (PCI DSS), LLM-as-judge | [`tests/evals/`](tests/evals/) — `pytest tests/evals -m gate` |
-| AgentCore Runtime IaC | Runtime + ECR stacks, async pre-start shim | [`infra/stacks/runtime_stack.py`](infra/stacks/runtime_stack.py), [`infra/stacks/runtime_ecr_stack.py`](infra/stacks/runtime_ecr_stack.py) |
-| Observability + SLOs | EMF tracing, redaction, SLO-anchored alarms | [`src/compliance_assistant/tracing.py`](src/compliance_assistant/tracing.py), [`tests/test_tracing.py`](tests/test_tracing.py), [`docs/SLOs.md`](docs/SLOs.md), [`infra/stacks/observability_stack.py`](infra/stacks/observability_stack.py) |
-| WA-Lens audit | All 7 pillars, 6-field Reasoning-Gate findings | [`docs/analysis/2026-05-16-compliance-prod-readiness.md`](docs/analysis/2026-05-16-compliance-prod-readiness.md), receipts under [`docs/analysis/_evidence/`](docs/analysis/_evidence/) |
-| Quality gate (meta) | 6-leg adversarial review panel with mutation + coverage floors | [`review_gate/`](review_gate/), [`tests/review_gate/`](tests/review_gate/) |
+| Bedrock knowledge layer | CDK synth -> 5 templates | [`infra/stacks/kb_stack.py`](infra/stacks/kb_stack.py), [`infra/stacks/agent_stack.py`](infra/stacks/agent_stack.py), [`infra/tests/`](infra/tests/) |
+| Config and secrets | Fail-fast startup validation; env-gated verbosity | [`src/compliance_assistant/startup.py`](src/compliance_assistant/startup.py), [`tests/test_startup.py`](tests/test_startup.py) |
+| RAG evaluation harness | Offline gate plus post-deploy live conformance subset | [`tests/evals/`](tests/evals/), `pytest tests/evals -m gate`, `python -m tests.evals.harness.live_agent` |
+| AgentCore Runtime IaC | Runtime + ECR stacks, durable run manifests, async shim | [`infra/stacks/runtime_stack.py`](infra/stacks/runtime_stack.py), [`infra/runtime/server.py`](infra/runtime/server.py), [`infra/tests/test_runtime_server.py`](infra/tests/test_runtime_server.py) |
+| Observability and alarms | EMF tracing, redaction, SLO alarms, SNS notification path | [`src/compliance_assistant/tracing.py`](src/compliance_assistant/tracing.py), [`docs/SLOs.md`](docs/SLOs.md), [`infra/stacks/observability_stack.py`](infra/stacks/observability_stack.py) |
+| WA-Lens audit | All 7 pillars, evidence-backed findings | [`docs/analysis/2026-05-16-compliance-prod-readiness.md`](docs/analysis/2026-05-16-compliance-prod-readiness.md) |
+| Quality gate | 6-leg review panel with mutation and coverage floors | [`review_gate/`](review_gate/), [`tests/review_gate/`](tests/review_gate/) |
 
-**What is NOT deployed:** none of the above runs on real AWS in this repo.
-Every claim above is verified at synth time and by tests, not by a live
-CloudWatch dashboard. The HUMAN-GATE deploy is intentional cost discipline,
-not an incomplete phase — see the *Engineering posture* section below.
+**What is not yet proven here:** a first hardened-stack deploy, one grounded
+end-to-end run, one correct not-found run, one passing live conformance run,
+and one confirmed `ComplianceAssistant/Crew` CloudWatch metric receipt. Until
+those are captured, the honest claim is "verified in code and tests, not yet
+proven in production."
 
-## Quick start (local validation, no AWS spend)
+## Quick start
 
-Requires Python 3.10+ and Node (for the CDK CLI).
+Requires Python 3.10+ and Node.
 
 ```bash
-# 1. Install
 pip install uv
-uv sync                                # runtime deps
-uv sync --extra infra                  # + CDK toolchain for synth
-uv sync --extra gate                   # + mutation/coverage for the review gate
+uv sync
+uv sync --extra infra
+uv sync --extra gate
 
-# 2. Synthesize the full stack (5 templates, no deploy)
 cd infra
-npx aws-cdk@latest synth --all -q
+npx aws-cdk@latest synth ComplianceObservabilityStack ComplianceKbStack ComplianceAgentStack ComplianceRuntimeEcrStack ComplianceRuntimeStack -q
 cd ..
 
-# 3. Run the full test suite (Python + CDK assertion tests)
 PYTHONPATH=src python -m pytest tests infra/tests -q
-
-# 4. Run the offline RAG eval gate
 PYTHONPATH=src python -m pytest tests/evals -m gate -q
 ```
 
-All four commands should exit 0 on a clean checkout. The eval gate runs
-deterministically against recorded fixtures — no Bedrock calls are made.
-Live re-recording is opt-in via `-m live` (see [`tests/evals/test_live.py`](tests/evals/test_live.py)).
+GitHub Actions runs the same core checks on push and pull request via
+`.github/workflows/ci.yml`.
 
-## Engineering posture (the non-obvious choices)
+To enforce the quality gate locally before commit and push:
 
-A few decisions are worth surfacing because they tend to look like gaps but
-are deliberate:
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1
+```
 
-- **Synth + test ≠ deploy.** The PRD's `CHECK:` items are autonomous and
-  free; `HUMAN-GATE:` items are operator-gated because they cost money.
-  An autonomous loop that runs `cdk deploy` would burn through cloud spend
-  and silently drift the stack. The line is drawn at "anything the
-  CloudFormation API mutates in real AWS."
-- **`docs/` tracks the navigable doc set; scratch stays out.** Tracked: the
-  SYSTEM guide, the ADRs, the threat model, the SLO + eval contracts, the
-  WA-Lens audit + receipts, and the architecture diagram + its review log.
-  Superseded `superpowers/` specs/plans and large reference assets stay
-  untracked — code is the source of truth. See `.gitignore` for the exact list.
-- **Phase 6 closed by owner-acceptance, not gate PASS.** The 6-leg quality
-  gate returned FAIL on a contested finding from the codex adversarial
-  leg; the other five legs (security, code review, test-engineer mutant
-  sweep, regression, mutation floor 0.881) refuted it, and the owner
-  adjudicated and overrode with a written defense in the PRD Progress
-  Log. The dissenting record is preserved in
-  `.claude/review-gate.verdicts.json`. This is in `ARCHITECTURE.md` because
-  the override is mature engineering judgment, not a hidden gap.
-- **The 6-leg quality gate is part of the system, not external CI.**
-  `review_gate/` ran on every phase and is itself tested
-  ([`tests/review_gate/`](tests/review_gate/)). It is what made the
-  multi-phase autonomous work credible.
+The repo-scoped hooks verify the locked dependency graph with `uv sync
+--frozen`, run `pytest`, run the offline eval gate, synth the CDK stacks, and
+run `cfn-lint`. If you want stricter local static analysis, set
+`ENABLE_BANDIT_HOOK=1` to require Bandit and `ENABLE_SONAR_HOOK=1` to require
+`sonar-scanner` plus `sonar-project.properties`.
+
+## Engineering posture
+
+- Synth + test is deliberately separate from deploy. The operator-gated deploy
+  path exists because real AWS resources cost money and mutate account state.
+- The 6-leg quality gate is part of the system, not a replacement for CI.
+  `review_gate/` made the multi-phase autonomous work credible; GitHub Actions
+  now enforces the existing pytest + offline eval + cfn-lint checks.
+- The repo still tells the truth about deployment status. The code paths are
+  hardened; the first live proof run still has to happen.
 
 ## Repository layout
 
-```
+```text
 infra/              CDK stacks (kb, agent, runtime, ecr, observability)
-infra/tests/        Python assertion tests on synthesized templates
+infra/tests/        Synth-time and unit tests for the infra path
 src/compliance_assistant/
-                    Crew (agents.yaml, tasks.yaml, crew.py, main.py),
-                    tracing, redaction, startup validation, citations
-tests/              Top-level Python tests (startup, citations, tracing,
-                    redaction, agent_ids, prod_readiness)
-tests/evals/        RAG evaluation harness: gold set, retrieval +
-                    generation + task metrics, judge prompts, CI gate
-tests/review_gate/  Tests covering the quality-gate machine itself
-review_gate/        Quality-gate orchestration (panel, mutation, diff,
-                    aggregation, provenance, PRD updates)
-docs/               Tracked: SYSTEM.md, adr/, threat-model.md, SLOs.md,
-                    evals.md, analysis/ (WA-Lens audit + evidence), and
-                    diagrams/ (architecture diagram + review log).
-                    Superseded specs/plans stay gitignored.
-analysis/_legacy/   Pre-hardening AWS-sample artifacts, kept for
-                    provenance. See its own README.
-.claude/PRPs/       PRD + per-phase plans (tracked). Internal artifacts
-                    (ralph archives, findings) are also here.
+                    Crew, tracing, startup validation, citations
+tests/              Top-level Python tests
+tests/evals/        Offline eval gate and live conformance harness
+tests/review_gate/  Tests for the quality-gate machine
+review_gate/        Quality-gate orchestration
+docs/               Tracked product, architecture, eval, SLO, and audit docs
+analysis/_legacy/   Pre-hardening sample artifacts
 ```
 
-## Configuring + running the crew
+## Configuring and running the crew
 
-The crew itself is a CrewAI sequential pipeline (researcher → writer →
-designer) that delegates retrieval to a Bedrock Agent. Configuration is
-read from `.env` with fail-fast validation
-([`src/compliance_assistant/startup.py`](src/compliance_assistant/startup.py)) —
-the application refuses to start with placeholder values, missing IDs, or
-invalid models.
-
-After deploy, the Bedrock Agent/KB IDs are published to SSM and read at
-startup; you do **not** copy them into `.env` manually (that was the
-click-ops baseline; Phase 1 replaced it). See
+The crew is a sequential pipeline (researcher -> writer -> designer) that
+delegates retrieval to a Bedrock Agent. Configuration is read from `.env` with
+fail-fast validation. After deploy, the Bedrock Agent IDs are published to SSM
+and read at startup; you do not copy deployed IDs into `.env` manually. See
 [`.env.example`](.env.example) for the contract.
 
-To run the crew (assumes a deployed stack and valid AWS credentials):
+To run the crew against a deployed stack:
 
 ```bash
 crewai run
 ```
 
-The crew writes to `output/1-requirements.md` (research),
-`output/2-report.md` (full report — each requirement section carries an
-inline source reference traced to the Bedrock Agent's retrieval, and the
-report ends with a "Known gaps" section), and `output/3-solution.md` (the
-proposed AWS control implementation). The standalone `## Sources` renderer
-(`citations.py`) is an eval-only utility, not wired into the runtime crew.
+The crew writes to `output/1-requirements.md`, `output/2-report.md`, and
+`output/3-solution.md`. The standalone `## Sources` renderer in
+`citations.py` is an eval utility, not part of the runtime report path.
 
 ## Documentation
 
-### How the system works
-
 | File | Purpose |
 |---|---|
-| [`docs/SYSTEM.md`](docs/SYSTEM.md) | System guide: personas, user stories, report-generation + ingestion flows, sequence diagram |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Engineering deep dive: inherited vs built, phase narratives, the quality-gate machine |
-| [`docs/threat-model.md`](docs/threat-model.md) | Trust boundaries, threat scenarios, mitigations, residual risks |
-
-### Contracts (single source of truth)
-
-| File | Purpose |
-|---|---|
-| [`docs/SLOs.md`](docs/SLOs.md) | SLO table the observability stack parses into one alarm per row |
-| [`docs/evals.md`](docs/evals.md) | RAG eval harness contract: gold set, metrics, gate thresholds |
-| [`docs/analysis/2026-05-16-compliance-prod-readiness.md`](docs/analysis/2026-05-16-compliance-prod-readiness.md) | Evidence-backed WA-Lens audit across all seven pillars |
-
-### Decision records
-
-| File | Purpose |
-|---|---|
-| [`docs/adr/`](docs/adr/) | Architecture Decision Records — index + 7 ADRs, the durable "why" |
-
-### Visuals
-
-| File | Purpose |
-|---|---|
-| [`docs/diagrams/compliance-assistant-v12.drawio`](docs/diagrams/compliance-assistant-v12.drawio) + [`.png`](docs/diagrams/compliance-assistant-v12.png) | Canonical architecture diagram: numbered request flow + right-side narrative |
-| [`docs/diagrams/compliance-assistant-review-log.md`](docs/diagrams/compliance-assistant-review-log.md) | Why the diagram changed across review rounds |
+| [`docs/SYSTEM.md`](docs/SYSTEM.md) | System guide and flow narrative |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Engineering deep dive |
+| [`docs/threat-model.md`](docs/threat-model.md) | Trust boundaries and residual risks |
+| [`docs/live-launch.md`](docs/live-launch.md) | Operator launch proof protocol |
+| [`docs/evals.md`](docs/evals.md) | Offline eval gate plus live conformance contract |
+| [`docs/SLOs.md`](docs/SLOs.md) | SLO table parsed into CloudWatch alarms |
+| [`docs/analysis/2026-05-16-compliance-prod-readiness.md`](docs/analysis/2026-05-16-compliance-prod-readiness.md) | Evidence-backed WA-Lens audit |
+| [`docs/adr/`](docs/adr/) | Architecture Decision Records |
 
 ## License
 

@@ -12,8 +12,9 @@ implements the AWS-documented asynchronous long-running pattern
 - ``GET /ping`` reports ``HealthyBusy`` while a run is in flight and
   ``Healthy`` when idle/done. AgentCore keeps a ``HealthyBusy`` session
   alive up to ``LifecycleConfiguration.MaxLifetime`` (8h here).
-- ``GET /status`` returns the structured outcome so a crew failure is
-  surfaced, never reported as a silent success.
+- ``GET /status`` returns the structured outcome from a durable manifest
+  in the report bucket, so a crew failure is surfaced, never reported
+  as a silent success, and the last run survives a container restart.
 
 The crew's reporting stage is a CrewAI ``ConditionalTask``: when the
 researcher finds no grounded source it returns "Not found in knowledge
@@ -33,12 +34,15 @@ import glob
 import json
 import os
 import threading
+import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 _PORT = 8080
 _OUTPUT_GLOB = "output/*.md"
 _REPORT_ARTIFACT = "output/2-report.md"
+_MANIFEST_PREFIX = "runs"
+_LATEST_RUN_KEY = f"{_MANIFEST_PREFIX}/latest.json"
 
 _LOCK = threading.Lock()
 _RUN: dict = {
@@ -48,6 +52,11 @@ _RUN: dict = {
     "grounded": False,
     "artifacts": [],
     "error": None,
+    "updated_at": None,
+    "accepted_at": None,
+    "running_at": None,
+    "completed_at": None,
+    "failed_at": None,
 }
 
 
@@ -72,6 +81,105 @@ def _s3_client():
     return boto3.client("s3")
 
 
+def _now() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _manifest_key(run_id: str) -> str:
+    return f"{_MANIFEST_PREFIX}/{run_id}/manifest.json"
+
+
+def _snapshot_unlocked() -> dict:
+    return {
+        "run_id": _RUN["id"],
+        "state": _RUN["state"],
+        "grounded": _RUN["grounded"],
+        "artifacts": list(_RUN["artifacts"]),
+        "error": _RUN["error"],
+        "updated_at": _RUN["updated_at"],
+        "accepted_at": _RUN["accepted_at"],
+        "running_at": _RUN["running_at"],
+        "completed_at": _RUN["completed_at"],
+        "failed_at": _RUN["failed_at"],
+    }
+
+
+def _persist_status_unlocked() -> dict:
+    """Persist the current run snapshot as the durable manifest."""
+    bucket = os.environ["REPORT_BUCKET"]
+    run_id = _RUN["id"]
+    if not run_id:
+        raise RuntimeError("cannot persist a manifest without a run id")
+    client = _s3_client()
+    manifest = _snapshot_unlocked()
+    payload = json.dumps(manifest, ensure_ascii=False, sort_keys=True).encode()
+    client.put_object(
+        Bucket=bucket,
+        Key=_manifest_key(run_id),
+        Body=payload,
+        ContentType="application/json",
+    )
+    client.put_object(
+        Bucket=bucket,
+        Key=_LATEST_RUN_KEY,
+        Body=json.dumps({"run_id": run_id}, ensure_ascii=False).encode(),
+        ContentType="application/json",
+    )
+    return manifest
+
+
+def _load_json(bucket: str, key: str) -> dict | None:
+    client = _s3_client()
+    try:
+        resp = client.get_object(Bucket=bucket, Key=key)
+    except Exception:
+        return None
+    body = resp.get("Body")
+    if body is None:
+        return None
+    return json.loads(body.read().decode("utf-8"))
+
+
+def _load_latest_manifest() -> dict | None:
+    bucket = os.environ.get("REPORT_BUCKET")
+    if not bucket:
+        return None
+    latest = _load_json(bucket, _LATEST_RUN_KEY)
+    if not latest or not latest.get("run_id"):
+        return None
+    manifest = _load_json(bucket, _manifest_key(latest["run_id"]))
+    if not isinstance(manifest, dict):
+        return None
+    return manifest
+
+
+def _set_state_unlocked(state: str, *, grounded: bool | None = None,
+                        artifacts: list[str] | None = None,
+                        error: str | None = None) -> dict:
+    now = _now()
+    _RUN["state"] = state
+    _RUN["updated_at"] = now
+    if grounded is not None:
+        _RUN["grounded"] = grounded
+    if artifacts is not None:
+        _RUN["artifacts"] = artifacts
+    _RUN["error"] = error
+    if state == "accepted":
+        _RUN["accepted_at"] = now
+        _RUN["running_at"] = None
+        _RUN["completed_at"] = None
+        _RUN["failed_at"] = None
+    elif state == "running":
+        _RUN["running_at"] = now
+    elif state == "completed":
+        _RUN["completed_at"] = now
+        _RUN["failed_at"] = None
+    elif state == "failed":
+        _RUN["failed_at"] = now
+        _RUN["completed_at"] = None
+    return _persist_status_unlocked()
+
+
 def _upload_artifacts(run_id: str) -> list[str]:
     """Upload every produced output/*.md to the report bucket.
 
@@ -89,23 +197,47 @@ def _upload_artifacts(run_id: str) -> list[str]:
     return keys
 
 
+def _mark_failed(run_id: str, exc: Exception) -> None:
+    # Caller sees a stable class+message category, not repr() (which
+    # can carry ARNs / request ids / boto3 error bodies). The full
+    # detail goes to the container log (CloudWatch) for the operator.
+    print(f"run {run_id} failed: {exc!r}", flush=True)
+    error = f"{type(exc).__name__}: {exc}"
+    with _LOCK:
+        _RUN["id"] = run_id
+        _RUN["thread"] = threading.current_thread()
+        _RUN["error"] = error
+        _RUN["state"] = "failed"
+        _RUN["grounded"] = False
+        _RUN["completed_at"] = None
+        _RUN["failed_at"] = _now()
+        _RUN["updated_at"] = _RUN["failed_at"]
+        try:
+            _persist_status_unlocked()
+        except Exception as persist_exc:
+            print(
+                f"run {run_id} failed and manifest persistence also failed: "
+                f"{persist_exc!r}",
+                flush=True,
+            )
+
+
 def _do_run(run_id: str) -> None:
     """Background worker: run the crew to completion, then upload."""
     try:
+        with _LOCK:
+            _set_state_unlocked("running", grounded=False, artifacts=[], error=None)
         _run_crew()
         artifacts = _upload_artifacts(run_id)
         with _LOCK:
-            _RUN["artifacts"] = artifacts
-            _RUN["grounded"] = os.path.exists(_REPORT_ARTIFACT)
-            _RUN["state"] = "completed"
+            _set_state_unlocked(
+                "completed",
+                artifacts=artifacts,
+                grounded=os.path.exists(_REPORT_ARTIFACT),
+                error=None,
+            )
     except Exception as exc:  # surfaced via /status and /ping, never hidden
-        # Caller sees a stable class+message category, not repr() (which
-        # can carry ARNs / request ids / boto3 error bodies). The full
-        # detail goes to the container log (CloudWatch) for the operator.
-        print(f"run {run_id} failed: {exc!r}", flush=True)
-        with _LOCK:
-            _RUN["error"] = f"{type(exc).__name__}: {exc}"
-            _RUN["state"] = "failed"
+        _mark_failed(run_id, exc)
 
 
 def _running_unlocked() -> bool:
@@ -114,7 +246,7 @@ def _running_unlocked() -> bool:
     alive between state=running and Thread.start()), which would let a
     second invocation through and report Healthy for an accepted run.
     Caller must hold _LOCK."""
-    return _RUN["state"] == "running"
+    return _RUN["state"] in {"accepted", "running"}
 
 
 def _busy() -> bool:
@@ -129,13 +261,12 @@ def ping() -> dict:
 
 def status() -> dict:
     with _LOCK:
-        return {
-            "run_id": _RUN["id"],
-            "state": _RUN["state"],
-            "grounded": _RUN["grounded"],
-            "artifacts": list(_RUN["artifacts"]),
-            "error": _RUN["error"],
-        }
+        if _RUN["id"] is not None or _RUN["state"] != "idle":
+            return _snapshot_unlocked()
+    manifest = _load_latest_manifest()
+    if manifest is not None:
+        return manifest
+    return _snapshot_unlocked()
 
 
 def start_invocation() -> tuple[int, dict]:
@@ -149,11 +280,25 @@ def start_invocation() -> tuple[int, dict]:
             target=_do_run, args=(run_id,), daemon=True
         )
         _RUN.update(
-            id=run_id, thread=thread, state="running",
-            grounded=False, artifacts=[], error=None,
+            id=run_id, thread=thread, state="idle", grounded=False,
+            artifacts=[], error=None, updated_at=None, accepted_at=None,
+            running_at=None, completed_at=None, failed_at=None,
         )
-        # Start UNDER the lock: state is already "running" and the
-        # thread is launched atomically with it, so there is no
+        try:
+            _set_state_unlocked(
+                "accepted", grounded=False, artifacts=[], error=None
+            )
+        except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
+            _RUN["thread"] = None
+            _RUN["state"] = "failed"
+            _RUN["error"] = error
+            _RUN["grounded"] = False
+            _RUN["updated_at"] = _now()
+            _RUN["failed_at"] = _RUN["updated_at"]
+            return 500, {"error": error, "run_id": run_id}
+        # Start UNDER the lock: the accepted state is already durable
+        # and the thread is launched atomically with it, so there is no
         # pre-start window where a second invocation slips past the
         # guard or /ping reports Healthy for an accepted run.
         # Thread.start() returns immediately; _do_run does not take

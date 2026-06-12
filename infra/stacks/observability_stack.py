@@ -31,14 +31,18 @@ attaches the AWS-managed `AWSLambdaBasicExecutionRole` (logs-only) to
 its singleton Lambda — a well-understood CDK pattern, accounted for and
 asserted by the test, justified in the README.
 """
+import os
 import pathlib
 
 import aws_cdk as cdk
 from aws_cdk import (
     Duration,
     aws_cloudwatch as cloudwatch,
+    aws_cloudwatch_actions as cloudwatch_actions,
     aws_iam as iam,
     aws_logs as logs,
+    aws_sns as sns,
+    aws_sns_subscriptions as subscriptions,
     custom_resources as cr,
 )
 from constructs import Construct
@@ -75,6 +79,23 @@ class ComplianceObservabilityStack(cdk.Stack):
         # kb_stack fail-closed-on-bad-context pattern) rather than
         # shipping a mismatched alarm set.
         slos = parse_slos(slos_path or SLOS_MD)
+        alarm_email = (
+            self.node.try_get_context("alarmEmail")
+            or os.environ.get("ALARM_EMAIL")
+        )
+
+        # R-OBS-SNS. Shared notification path for SLO alarms and the KB
+        # ingestion alarms/rules in the data-bearing stack.
+        self.notification_topic = sns.Topic(
+            self,
+            "NotificationTopic",
+            topic_name="compliance-assistant-alerts",
+            display_name="Compliance Assistant alerts",
+        )
+        if alarm_email:
+            self.notification_topic.add_subscription(
+                subscriptions.EmailSubscription(alarm_email)
+            )
 
         # R-OBS-LOGS. Where Bedrock delivers invocation metadata.
         # RETAIN so an audit trail is never destroyed by a stack delete.
@@ -204,6 +225,9 @@ class ComplianceObservabilityStack(cdk.Stack):
                     treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
                 )
             )
+            self.alarms[-1].add_alarm_action(
+                cloudwatch_actions.SnsAction(self.notification_topic)
+            )
 
         # R-OBS-DASH. One dashboard over the SLO metrics.
         dashboard = cloudwatch.Dashboard(
@@ -233,4 +257,7 @@ class ComplianceObservabilityStack(cdk.Stack):
         )
         cdk.CfnOutput(
             self, "SloAlarmCount", value=str(len(self.alarms))
+        )
+        cdk.CfnOutput(
+            self, "NotificationTopicArn", value=self.notification_topic.topic_arn
         )

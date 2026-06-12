@@ -6,6 +6,7 @@ during a run — and the critical product nuance that a valid
 no-grounded-findings run (no output/2-report.md) is a SUCCESS, not an
 infrastructure failure.
 """
+import io
 import json
 import threading
 import time
@@ -18,9 +19,23 @@ from runtime import server
 class _FakeS3:
     def __init__(self) -> None:
         self.uploads: list[tuple[str, str, str]] = []
+        self.objects: dict[tuple[str, str], bytes] = {}
 
     def upload_file(self, path: str, bucket: str, key: str) -> None:
         self.uploads.append((path, bucket, key))
+        with open(path, "rb") as fh:
+            self.objects[(bucket, key)] = fh.read()
+
+    def put_object(self, *, Bucket: str, Key: str, Body: bytes | str,
+                   ContentType: str | None = None) -> None:
+        del ContentType
+        if isinstance(Body, str):
+            Body = Body.encode("utf-8")
+        self.objects[(Bucket, Key)] = Body
+
+    def get_object(self, *, Bucket: str, Key: str) -> dict:
+        body = self.objects[(Bucket, Key)]
+        return {"Body": io.BytesIO(body)}
 
 
 @pytest.fixture(autouse=True)
@@ -33,7 +48,7 @@ def _isolate(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "_s3_client", lambda: fake)
     server._RUN.update(
         thread=None, id=None, state="idle", grounded=False,
-        artifacts=[], error=None,
+        artifacts=[], error=None, updated_at=None,
     )
     yield fake
     t = server._RUN["thread"]
@@ -79,6 +94,7 @@ def test_invocations_is_nonblocking_and_ping_reports_busy(_isolate, monkeypatch)
     assert st["state"] == "completed"
     assert st["grounded"] is True
     assert len(st["artifacts"]) == 2
+    assert st["updated_at"]
     assert len(_isolate.uploads) == 2
 
 
@@ -99,6 +115,11 @@ def test_no_grounded_findings_run_is_success_not_failure(_isolate, monkeypatch):
     assert st["artifacts"] == ["reports/%s/1-requirements.md" % st["run_id"]]
     assert st["error"] is None
     assert len(_isolate.uploads) == 1
+    manifest = json.loads(_isolate.objects[
+        ("test-report-bucket", f"runs/{st['run_id']}/manifest.json")
+    ])
+    assert manifest["state"] == "completed"
+    assert manifest["grounded"] is False
 
 
 def test_crew_failure_is_surfaced_never_silent_success(_isolate, monkeypatch):
@@ -114,6 +135,11 @@ def test_crew_failure_is_surfaced_never_silent_success(_isolate, monkeypatch):
     assert st["state"] == "failed"
     assert "crew blew up" in st["error"]
     assert server.ping() == {"status": "Healthy"}
+    manifest = json.loads(_isolate.objects[
+        ("test-report-bucket", f"runs/{st['run_id']}/manifest.json")
+    ])
+    assert manifest["state"] == "failed"
+    assert manifest["error"] == st["error"]
 
 
 def test_concurrent_invocation_is_rejected(_isolate, monkeypatch):
@@ -221,6 +247,50 @@ def test_handler_routes_over_a_real_socket(_isolate, monkeypatch):
     assert server.status()["state"] == "completed"
 
 
+def test_status_survives_process_state_reset_via_manifest(_isolate, monkeypatch):
+    monkeypatch.setattr(server, "_run_crew", lambda: _write("1-requirements.md"))
+
+    server.start_invocation()
+    _join()
+    first = server.status()
+    server._RUN.update(
+        thread=None, id=None, state="idle", grounded=False,
+        artifacts=[], error=None, updated_at=None,
+    )
+
+    restored = server.status()
+    assert restored == first
+
+
+def test_manifest_records_running_state_before_thread_finishes(_isolate, monkeypatch):
+    release = threading.Event()
+
+    def fake_run():
+        release.wait(timeout=5)
+        _write("1-requirements.md")
+
+    monkeypatch.setattr(server, "_run_crew", fake_run)
+
+    code, body = server.start_invocation()
+    assert code == 202
+    key = ("test-report-bucket", f"runs/{body['run_id']}/manifest.json")
+    for _ in range(50):
+        manifest = json.loads(_isolate.objects[key])
+        if manifest["state"] == "running":
+            break
+        time.sleep(0.01)
+    else:
+        raise AssertionError(f"manifest never reached running state: {manifest}")
+    assert manifest["state"] == "running"
+    assert manifest["grounded"] is False
+    assert manifest["artifacts"] == []
+    assert manifest["error"] is None
+    assert manifest["updated_at"]
+
+    release.set()
+    _join()
+
+
 def test_missing_report_bucket_is_failed_not_hung(_isolate, monkeypatch):
     # server.py docstring: a missing REPORT_BUCKET is a real misconfig
     # and must surface as a failed run (the upload-path except arm),
@@ -228,8 +298,9 @@ def test_missing_report_bucket_is_failed_not_hung(_isolate, monkeypatch):
     monkeypatch.delenv("REPORT_BUCKET", raising=False)
     monkeypatch.setattr(server, "_run_crew", lambda: _write("1-requirements.md"))
 
-    server.start_invocation()
-    _join()
+    code, body = server.start_invocation()
+    assert code == 500
+    assert body["run_id"]
 
     st = server.status()
     assert st["state"] == "failed"
@@ -237,10 +308,37 @@ def test_missing_report_bucket_is_failed_not_hung(_isolate, monkeypatch):
     assert server.ping() == {"status": "Healthy"}
 
 
+def test_manifest_write_failure_is_failed_not_silent_success(_isolate, monkeypatch):
+    class _BoomS3(_FakeS3):
+        def __init__(self):
+            super().__init__()
+            self.calls = 0
+
+        def put_object(self, **kwargs):
+            self.calls += 1
+            raise RuntimeError("manifest write exploded")
+
+    boom = _BoomS3()
+    monkeypatch.setattr(server, "_s3_client", lambda: boom)
+    monkeypatch.setattr(server, "_run_crew", lambda: _write("1-requirements.md"))
+
+    code, body = server.start_invocation()
+    assert code == 500
+    assert body["run_id"]
+    assert boom.calls >= 1
+
+    st = server.status()
+    assert st["run_id"] == body["run_id"]
+    assert st["state"] == "failed"
+    assert "manifest write exploded" in st["error"]
+    assert st["artifacts"] == []
+
+
 def test_s3_upload_error_is_failed_not_silent_success(_isolate, monkeypatch):
     # An upload failure must not masquerade as a grounded success.
-    class _BoomS3:
+    class _BoomS3(_FakeS3):
         def __init__(self):
+            super().__init__()
             self.calls = 0
 
         def upload_file(self, *_a):

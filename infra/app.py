@@ -22,11 +22,11 @@ import os
 
 import aws_cdk as cdk
 
-from stacks.kb_stack import ComplianceKbStack
 from stacks.agent_stack import ComplianceAgentStack
+from stacks.kb_stack import ComplianceKbStack
+from stacks.observability_stack import ComplianceObservabilityStack
 from stacks.runtime_ecr_stack import ComplianceRuntimeEcrStack
 from stacks.runtime_stack import ComplianceRuntimeStack
-from stacks.observability_stack import ComplianceObservabilityStack
 
 app = cdk.App()
 
@@ -38,11 +38,21 @@ env = cdk.Environment(
     region=os.environ.get("CDK_DEFAULT_REGION", "us-east-1"),
 )
 
+# Observability creates the shared SNS notification path that the KB
+# stack reuses for ingest-failure alarms and Bedrock failure events.
+obs_stack = ComplianceObservabilityStack(
+    app, "ComplianceObservabilityStack", env=env
+)
+
 # Termination protection on the data-bearing stack: it holds the
 # corpus, the vector store, and the Knowledge Base, none of which
 # should be deletable by an accidental `cdk destroy`.
 kb_stack = ComplianceKbStack(
-    app, "ComplianceKbStack", env=env, termination_protection=True
+    app,
+    "ComplianceKbStack",
+    env=env,
+    termination_protection=True,
+    notification_topic=obs_stack.notification_topic,
 )
 
 agent_stack = ComplianceAgentStack(
@@ -73,10 +83,5 @@ runtime_stack = ComplianceRuntimeStack(
 )
 runtime_stack.add_dependency(runtime_ecr_stack)
 runtime_stack.add_dependency(agent_stack)
-
-# Observability is standalone: model-invocation logging + dashboard +
-# one alarm per SLO derived from docs/SLOs.md. No cross-stack ref, no
-# bulk-deploy coupling.
-ComplianceObservabilityStack(app, "ComplianceObservabilityStack", env=env)
 
 app.synth()
