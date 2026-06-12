@@ -25,7 +25,7 @@
         <mxCell id="op" value="Operator" style="shape=mxgraph.aws4.user;sketch=0;html=1;pointerEvents=1;dashed=0;fillColor=#232F3E;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;fontSize=13;" parent="1" vertex="1">
           <mxGeometry x="-1660" y="1076" width="90" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="s3-report" value="S3 Report Bucket&#xa;[RuntimeStack] · versioned" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#3F8624;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+        <mxCell id="s3-report" value="S3 Report Bucket&#xa;[RuntimeStack] · versioned&#xa;reports/ + runs/" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#3F8624;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
           <mxGeometry x="-1283" y="1320" width="76" height="76" as="geometry" />
         </mxCell>
         <mxCell id="ac-runtime" value="AgentCore Runtime&#xa;[RuntimeStack]&#xa;PUBLIC net · scale-to-zero · 8h TTL" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#01A88D;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
@@ -97,6 +97,9 @@
         <mxCell id="ingest-fn" value="IngestFn Lambda&#xa;S3 event → StartIngestionJob" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#ED7100;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
           <mxGeometry x="60" y="1850" width="76" height="76" as="geometry" />
         </mxCell>
+        <mxCell id="ingest-dlq" value="SQS Ingest DLQ&#xa;retry / failure buffer" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#C925D1;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.simple_queue_service;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="255" y="1848" width="76" height="76" as="geometry" />
+        </mxCell>
         <mxCell id="pgvector-boot" value="PgvectorBootstrap Lambda&#xa;deploy-time DDL · RDS Data API (no VPC)" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#ED7100;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
           <mxGeometry x="480" y="1842" width="76" height="76" as="geometry" />
         </mxCell>
@@ -118,6 +121,9 @@
         <mxCell id="mil" value="Model Invocation&#xa;Logging" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#01A88D;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
           <mxGeometry x="-160" y="2162" width="72" height="72" as="geometry" />
         </mxCell>
+        <mxCell id="sns-topic" value="SNS Alerts Topic&#xa;shared operator notifications" style="outlineConnect=0;fontColor=#232F3E;strokeColor=none;fillColor=#D13212;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=11;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.simple_notification_service;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="80" y="2162" width="72" height="72" as="geometry" />
+        </mxCell>
         <mxCell id="ci-box" value="QUALITY GATE  (CI — runs outside AWS)" style="rounded=0;html=1;container=1;collapsible=0;verticalAlign=top;align=left;fillColor=#FAFAFA;dashed=1;strokeColor=#888888;strokeWidth=2;fontSize=14;fontStyle=1;fontColor=#555555;spacingLeft=10;spacingTop=6;" parent="1" vertex="1">
           <mxGeometry x="-1350" y="2564" width="2490" height="200" as="geometry" />
         </mxCell>
@@ -133,11 +139,14 @@
         <mxCell id="prod-readiness" value="tests/test_prod_readiness.py&#xa;WA-Lens audit validator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#888888;fontSize=11;" parent="ci-box" vertex="1">
           <mxGeometry x="1090" y="55" width="300" height="110" as="geometry" />
         </mxCell>
+        <mxCell id="live-conformance" value="tests/evals/harness/live_agent&#xa;post-deploy live conformance&#xa;(launch proof, not merge CI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#888888;fontSize=11;" parent="ci-box" vertex="1">
+          <mxGeometry x="1460" y="55" width="320" height="110" as="geometry" />
+        </mxCell>
         <mxCell id="e-evals-gold" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#888888;" parent="ci-box" source="evals" target="gold-set" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="ci-note" value="gates every deploy  (no runtime coupling to AWS resources)" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#888888;fontStyle=2;" parent="ci-box" vertex="1">
-          <mxGeometry x="1430" y="95" width="520" height="30" as="geometry" />
+        <mxCell id="ci-note" value="offline gate is the merge contract; live conformance is the post-deploy proof step" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#888888;fontStyle=2;" parent="ci-box" vertex="1">
+          <mxGeometry x="1830" y="95" width="600" height="30" as="geometry" />
         </mxCell>
         <mxCell id="narr-box" value="Request walkthrough — one operator report" style="rounded=1;html=1;container=1;collapsible=0;verticalAlign=top;align=left;fillColor=#FBFBFD;strokeColor=#9AA7B5;strokeWidth=2;fontSize=15;fontStyle=1;fontColor=#34404D;spacingLeft=12;spacingTop=8;" parent="1" vertex="1">
           <mxGeometry x="940" y="1320" width="1755" height="1130" as="geometry" />
@@ -420,6 +429,9 @@
             </Array>
           </mxGeometry>
         </mxCell>
+        <mxCell id="e-ingest-dlq" value="async failure / retries" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#ED7100;dashed=1;strokeWidth=2;fontSize=10;" parent="1" source="ingest-fn" target="ingest-dlq" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
         <mxCell id="e-kb-s3read" value="reads PDFs&#xa;(KB role, ingest)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#3F8624;dashed=1;fontSize=10;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="br-kb" target="s3-corpus" edge="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
@@ -483,6 +495,17 @@
             <Array as="points">
               <mxPoint x="-1085" y="1143" />
               <mxPoint x="-1085" y="2125" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="eobs5" value="alarm actions" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#7B1FA2;dashed=1;strokeWidth=2;fontSize=10;" parent="1" source="cw-alarms" target="sns-topic" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eobs6" value="ingest alarms / failure events" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#7B1FA2;dashed=1;strokeWidth=2;fontSize=10;" parent="1" source="ingest-dlq" target="sns-topic" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="293" y="2120" />
+              <mxPoint x="116" y="2120" />
             </Array>
           </mxGeometry>
         </mxCell>

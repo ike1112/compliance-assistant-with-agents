@@ -60,3 +60,15 @@ storage icons. Verified by rendering at scale 2 and inspecting every region.
 closes back to the operator (invoke → research → retrieve → report → download).
 No internal audit-catalog IDs (R-\*) appear on the diagram by design; the
 resource catalog lives in the WA-Lens audit instead.
+
+## 2026-06-12 refresh
+
+- Updated the tracked `.drawio` source to reflect the current launch-proof and
+  alerting posture without changing the core request-path layout.
+- Added the shared SNS operator-notification topic in the observability band.
+- Added the ingest DLQ / failure path so the diagram matches the KB stack's
+  async retry and alarm wiring.
+- Added the post-deploy `live_agent` conformance harness to the CI/proof area,
+  explicitly labeled as launch proof rather than merge CI.
+- Clarified the report bucket label to show both `reports/` artifacts and
+  durable `runs/` manifests.
