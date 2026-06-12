@@ -228,14 +228,24 @@ class ComplianceRuntimeStack(cdk.Stack):
         # CDK grant expands to s3:PutObjectLegalHold / PutObjectRetention
         # / PutObjectVersionTagging / Abort* (+ kms:Decrypt from the
         # bucket grant) — none of which the shim's upload_file path
-        # uses. The shim only PutObjects small markdown files into an
-        # SSE-KMS bucket, so scope to exactly that. Observability
-        # (CloudWatch metrics, X-Ray) stays deferred to the
-        # observability phase so no other Resource:"*" is introduced.
+        # uses. The runtime only writes report markdown files and
+        # reads/writes its own run manifests, so scope to exactly that.
+        # Observability (CloudWatch metrics, X-Ray) stays deferred to
+        # the observability phase so no other Resource:"*" is
+        # introduced.
         self.runtime_role.add_to_policy(
             iam.PolicyStatement(
                 actions=["s3:PutObject"],
-                resources=[self.report_bucket.arn_for_objects("reports/*")],
+                resources=[
+                    self.report_bucket.arn_for_objects("reports/*"),
+                    self.report_bucket.arn_for_objects("runs/*"),
+                ],
+            )
+        )
+        self.runtime_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["s3:GetObject"],
+                resources=[self.report_bucket.arn_for_objects("runs/*")],
             )
         )
         # SSE-KMS object writes need a data key; no Decrypt (the runtime

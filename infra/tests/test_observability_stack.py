@@ -71,12 +71,35 @@ def test_dashboard_present():
     _template().resource_count_is("AWS::CloudWatch::Dashboard", 1)
 
 
+def test_notification_topic_present_and_every_slo_alarm_has_an_action():
+    t = _template()
+    t.resource_count_is("AWS::SNS::Topic", 1)
+    topic_arn_refs = json.dumps(t.find_resources("AWS::SNS::Topic"))
+    for alarm in t.find_resources("AWS::CloudWatch::Alarm").values():
+        actions = alarm["Properties"].get("AlarmActions") or []
+        assert actions, "every SLO alarm must publish to SNS"
+        assert any("NotificationTopic" in json.dumps(a) for a in actions), (
+            f"alarm actions must target the shared notification topic, got {actions}"
+        )
+    assert "NotificationTopic" in topic_arn_refs
+
+
 def test_log_group_present_with_retention():
     t = _template()
     t.resource_count_is("AWS::Logs::LogGroup", 1)
     lg = list(t.find_resources("AWS::Logs::LogGroup").values())[0]
     assert lg["Properties"].get("RetentionInDays"), "log group must retain"
     assert lg["DeletionPolicy"] == "Retain"
+
+
+def test_optional_email_subscription_is_wired_when_configured():
+    app = cdk.App(context={"alarmEmail": "alerts@example.com"})
+    t = Template.from_stack(ComplianceObservabilityStack(app, "TestObsEmail"))
+    subs = list(t.find_resources("AWS::SNS::Subscription").values())
+    assert len(subs) == 1
+    props = subs[0]["Properties"]
+    assert props["Protocol"] == "email"
+    assert props["Endpoint"] == "alerts@example.com"
 
 
 def test_bedrock_logging_present_with_no_raw_content_delivery():

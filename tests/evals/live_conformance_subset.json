@@ -1,0 +1,17 @@
+{
+  "positive_ids": [
+    "pos-001",
+    "pos-004",
+    "pos-008",
+    "pos-012",
+    "pos-015",
+    "pos-022",
+    "pos-030",
+    "pos-038"
+  ],
+  "negative_ids": [
+    "neg-001",
+    "neg-004"
+  ],
+  "rationale": "Small post-deploy conformance slice covering multiple PCI DSS domains with eight labeled positives for requirement-coverage scoring and two out-of-corpus negatives for not-found honesty."
+}

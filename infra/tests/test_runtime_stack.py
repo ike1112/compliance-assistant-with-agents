@@ -193,10 +193,13 @@ def test_report_write_grant_is_least_privilege():
     ]
     assert s3_report, "expected an explicit S3 statement for report writes"
     s3_actions = {a for s in s3_report for a in _as_list(s.get("Action"))}
-    assert s3_actions == {"s3:PutObject"}, (
-        f"report-write S3 actions must be exactly s3:PutObject, "
+    assert s3_actions == {"s3:PutObject", "s3:GetObject"}, (
+        f"report-manifest S3 actions must be exactly s3:PutObject + s3:GetObject, "
         f"got {sorted(s3_actions)}"
     )
+    blob = json.dumps(s3_report)
+    assert "reports/*" in blob
+    assert "runs/*" in blob
     kms_actions = {
         a for s in stmts for a in _as_list(s.get("Action"))
         if isinstance(a, str) and a.startswith("kms:")

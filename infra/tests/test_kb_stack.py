@@ -10,11 +10,13 @@ import pytest
 from aws_cdk.assertions import Template, Match
 
 from stacks.kb_stack import ComplianceKbStack
+from stacks.observability_stack import ComplianceObservabilityStack
 
 
 def _template() -> Template:
     app = cdk.App()
-    stack = ComplianceKbStack(app, "TestKb")
+    obs = ComplianceObservabilityStack(app, "TestObs")
+    stack = ComplianceKbStack(app, "TestKb", notification_topic=obs.notification_topic)
     return Template.from_stack(stack)
 
 
@@ -161,3 +163,42 @@ def test_buckets_enforce_tls():
             == "false"
             for s in stmts
         ), "missing deny-non-TLS statement"
+
+
+def test_ingest_lambda_has_dlq_and_async_failure_config():
+    t = _template()
+    t.resource_count_is("AWS::SQS::Queue", 1)
+    t.resource_count_is("AWS::Lambda::EventInvokeConfig", 1)
+    cfg = list(t.find_resources("AWS::Lambda::EventInvokeConfig").values())[0]
+    dest = cfg["Properties"]["DestinationConfig"]["OnFailure"]["Destination"]
+    assert "IngestDlq" in str(dest), dest
+
+
+def test_ingest_failure_alarms_publish_to_notification_topic():
+    t = _template()
+    alarms = [
+        r["Properties"]
+        for r in t.find_resources("AWS::CloudWatch::Alarm").values()
+    ]
+    names = {a["AlarmName"] for a in alarms}
+    assert "compliance-ingest-lambda-errors" in names
+    assert "compliance-ingest-dlq-depth" in names
+    for alarm in alarms:
+        actions = alarm.get("AlarmActions") or []
+        assert actions, f"{alarm['AlarmName']}: missing alarm action"
+        assert any("NotificationTopic" in str(a) for a in actions), actions
+
+
+def test_ingestion_job_failure_event_rule_targets_notification_topic():
+    t = _template()
+    rules = list(t.find_resources("AWS::Events::Rule").values())
+    assert len(rules) == 1
+    props = rules[0]["Properties"]
+    pattern = str(props["EventPattern"])
+    assert "aws.bedrock" in pattern
+    assert "knowledgeBaseId" in pattern
+    assert "dataSourceId" in pattern
+    assert "FAILED" in pattern or "STOPPED" in pattern
+    targets = props["Targets"]
+    assert len(targets) == 1
+    assert "NotificationTopic" in str(targets[0]["Arn"])

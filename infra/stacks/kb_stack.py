@@ -19,13 +19,20 @@ import aws_cdk as cdk
 from aws_cdk import (
     Duration,
     aws_bedrock as bedrock,
+    aws_cloudwatch as cloudwatch,
+    aws_cloudwatch_actions as cloudwatch_actions,
     aws_ec2 as ec2,
+    aws_events as events,
+    aws_events_targets as events_targets,
     aws_iam as iam,
     aws_kms as kms,
     aws_lambda as lambda_,
+    aws_lambda_destinations as lambda_destinations,
     aws_rds as rds,
     aws_s3 as s3,
     aws_s3_notifications as s3n,
+    aws_sns as sns,
+    aws_sqs as sqs,
     triggers,
 )
 from constructs import Construct
@@ -105,7 +112,9 @@ def handler(event, context):
 class ComplianceKbStack(cdk.Stack):
     """Corpus, encryption, vector store, and the Bedrock Knowledge Base."""
 
-    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
+    def __init__(self, scope: Construct, construct_id: str, *,
+                 notification_topic: sns.ITopic | None = None,
+                 **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         # R-KMS. One customer-managed key for the corpus and (later)
@@ -357,6 +366,12 @@ class ComplianceKbStack(cdk.Stack):
             ),
         )
 
+        ingest_dlq = sqs.Queue(
+            self,
+            "IngestDlq",
+            encryption=sqs.QueueEncryption.SQS_MANAGED,
+            retention_period=Duration.days(14),
+        )
         # Re-index when a PDF is uploaded. Inline-dir asset (zipped,
         # not Docker-built). IAM scoped to StartIngestionJob on this
         # KB only — no wildcard.
@@ -371,6 +386,15 @@ class ComplianceKbStack(cdk.Stack):
                 "KB_ID": self.knowledge_base.attr_knowledge_base_id,
                 "DATA_SOURCE_ID": data_source.attr_data_source_id,
             },
+            dead_letter_queue=ingest_dlq,
+        )
+        lambda_.EventInvokeConfig(
+            self,
+            "IngestFnInvokeConfig",
+            function=ingest_fn,
+            max_event_age=Duration.hours(6),
+            retry_attempts=2,
+            on_failure=lambda_destinations.SqsDestination(ingest_dlq),
         )
         ingest_fn.add_to_role_policy(
             iam.PolicyStatement(
@@ -382,6 +406,52 @@ class ComplianceKbStack(cdk.Stack):
             s3.EventType.OBJECT_CREATED,
             s3n.LambdaDestination(ingest_fn),
         )
+
+        ingest_error_alarm = cloudwatch.Alarm(
+            self,
+            "IngestLambdaErrorsAlarm",
+            alarm_name="compliance-ingest-lambda-errors",
+            alarm_description="The ingest Lambda raised an error.",
+            metric=ingest_fn.metric_errors(
+                period=Duration.minutes(5), statistic="sum"
+            ),
+            threshold=1,
+            evaluation_periods=1,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
+        ingest_dlq_alarm = cloudwatch.Alarm(
+            self,
+            "IngestDlqDepthAlarm",
+            alarm_name="compliance-ingest-dlq-depth",
+            alarm_description="The ingest Lambda dead-letter queue is non-empty.",
+            metric=ingest_dlq.metric_approximate_number_of_messages_visible(
+                period=Duration.minutes(5), statistic="Average"
+            ),
+            threshold=1,
+            evaluation_periods=1,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
+        if notification_topic is not None:
+            action = cloudwatch_actions.SnsAction(notification_topic)
+            ingest_error_alarm.add_alarm_action(action)
+            ingest_dlq_alarm.add_alarm_action(action)
+
+            events.Rule(
+                self,
+                "IngestionJobFailureRule",
+                description="Notify when a Bedrock KB ingestion job fails or stops.",
+                event_pattern=events.EventPattern(
+                    source=["aws.bedrock"],
+                    detail={
+                        "knowledgeBaseId": [self.knowledge_base.attr_knowledge_base_id],
+                        "dataSourceId": [data_source.attr_data_source_id],
+                        "status": ["FAILED", "STOPPED"],
+                    },
+                ),
+                targets=[events_targets.SnsTopic(notification_topic)],
+            )
 
         cdk.CfnOutput(self, "CorpusBucketName", value=self.corpus_bucket.bucket_name)
         cdk.CfnOutput(
