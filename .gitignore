@@ -51,3 +51,20 @@ infra/cdk.context.json
 .coverage
 **/.coverage
 coverage.xml
+.coverage-*.json
+
+# local agent/workbench artifacts
+.agents/
+.claude/*.lock
+.claude/_*.log
+.claude/architecture-analysis-*.md
+.claude/hardening-audit-*.md
+
+# noisy iterative review artifacts under .claude
+.claude/findings-6-r*.md
+.claude/findings-6-c2-r1.md
+.claude/findings-6-c2-r2.md
+.claude/PRPs/ralph-archives/2026-05-19-phase-prod-readiness-*/
+.claude/PRPs/reports/phase-agentcore-runtime-iac-report.md
+.claude/PRPs/reports/phase-observability-slos-report.md
+.claude/PRPs/reports/phase-prod-readiness-analysis-report.md
